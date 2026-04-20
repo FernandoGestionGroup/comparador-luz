@@ -149,7 +149,7 @@ def try_google(cfg, model_name, contents, models_to_try):
         except Exception as ve:
             last_err = f"Client init error ({version}): {str(ve)}"
             
-    diag = f"Modelos encontrados en tu cuenta: {', '.join(discovered_names) or 'Ninguno'}"
+    diag = f"Modelos encontrados en tu cuenta: {', '.join(discovered_names) or 'Ninguno'}. Llave usada: {key[:4]}..."
     return None, f"Gemini: {last_err}. {diag}"
 
 def try_openai(cfg, model_name, messages, provider='openai'):
