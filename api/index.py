@@ -200,19 +200,5 @@ async def extract_invoice(body: dict = Body(...)):
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
 
-# --- FRONTEND SERVING (RELIABLE) ---
-@app.get("/")
-async def root():
-    index = PUBLIC_DIR / "index.html"
-    if index.exists(): return FileResponse(str(index))
-    return JSONResponse({"status": "error", "message": "index.html not found", "path": str(index)})
-
-@app.get("/{path:path}")
-async def serve_static(path: str):
-    file_path = PUBLIC_DIR / path
-    if file_path.is_file():
-        return FileResponse(str(file_path))
-    # Fallback to index for SPA
-    index = PUBLIC_DIR / "index.html"
-    if index.exists(): return FileResponse(str(index))
-    return JSONResponse({"status": "error", "message": f"File {path} not found"})
+@app.post("/api/claude")
+async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
