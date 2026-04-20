@@ -206,10 +206,9 @@ def smart_dispatch(key):
             'url': 'https://openrouter.ai/api/v1',
             # List of reliable Vision models for April 2026
             'models': [
+                'openrouter/free', # AUTO-ROUTING to current free models (No credits needed)
                 'google/gemini-2.0-flash-001',
-                'google/gemini-flash-1.5',
-                'meta-llama/llama-3.2-11b-vision-instruct:free',
-                'openrouter/auto'
+                'meta-llama/llama-3.2-11b-vision-instruct:free'
             ],
             'name': 'OpenRouter'
         }
