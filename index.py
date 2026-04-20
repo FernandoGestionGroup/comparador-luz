@@ -158,16 +158,25 @@ def try_openai(cfg, model_name, messages, provider='openai'):
     if provider == 'groq' and 'groq' not in base_url: base_url = 'https://api.groq.com/openai/v1'
     if not key: return None, "Key missing"
     
-    client = OpenAI(api_key=key, base_url=base_url)
+    # OpenRouter specific headers for better service
+    extra_headers = {
+        "HTTP-Referer": "https://comparador-luz.vercel.app",
+        "X-Title": "Comparador Luz B2B"
+    }
+
+    client = OpenAI(api_key=key, base_url=base_url, default_headers=extra_headers)
     oa_messages = []
     for msg in messages:
         oa_content = []
         for content in msg.get('content', []):
             if content['type'] == 'text':
                 oa_content.append({"type": "text", "text": content['text']})
-            elif content['type'] == 'image':
+            elif content['type'] == 'image' or content['type'] == 'document':
                 src = content.get('source', {})
-                oa_content.append({"type": "image_url", "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data')}"}})
+                data = src.get('data', '')
+                mtype = src.get('media_type', 'image/jpeg')
+                # OpenAI standard for vision
+                oa_content.append({"type": "image_url", "image_url": {"url": f"data:{mtype};base64,{data}"}})
         oa_messages.append({"role": msg.get('role', 'user'), "content": oa_content})
 
     try:
@@ -186,17 +195,50 @@ def try_anthropic(cfg, model_name, messages):
     except Exception as e:
         return None, str(e)
 
+def smart_dispatch(key):
+    """Identifies provider and configures defaults based on key prefix."""
+    if not key: return None
+    key = key.strip()
+    
+    if key.startswith('sk-or-'):
+        return {
+            'type': 'openai',
+            'url': 'https://openrouter.ai/api/v1',
+            'model': 'google/gemini-2.0-flash-001',
+            'name': 'OpenRouter'
+        }
+    elif key.startswith('AIza'):
+        return {
+            'type': 'google',
+            'model': 'gemini-2.0-flash',
+            'name': 'Google Gemini'
+        }
+    elif key.startswith('sk-ant-'):
+        return {
+            'type': 'anthropic',
+            'model': 'claude-3-5-sonnet-latest',
+            'name': 'Anthropic'
+        }
+    elif key.startswith('sk-'):
+        return {
+            'type': 'openai',
+            'url': 'https://api.openai.com/v1',
+            'model': 'gpt-4o-mini',
+            'name': 'OpenAI'
+        }
+    return None
+
 @app.post("/api/extract")
 async def extract_invoice(body: dict = Body(...)):
     cfg = get_doc('config', 'global') or {}
     messages = body.get('messages', [])
-    selected_provider = cfg.get('provider', 'anthropic')
     
-    # Priority List: 1. Selected, 2. Fallbacks
-    all_providers = ['google', 'anthropic', 'openai', 'groq']
-    fallback_queue = [selected_provider] + [p for p in all_providers if p != selected_provider]
-    
-    last_overall_error = "No provider available"
+    # 1. Gather all potential keys
+    potential_keys = [
+        cfg.get('openai_key', ''),
+        cfg.get('api_key', ''), # Anthropic
+        cfg.get('gemini_key', '')
+    ]
     
     # Context prepared for Gemini
     gemini_contents = []
@@ -209,22 +251,38 @@ async def extract_invoice(body: dict = Body(...)):
                 gemini_contents.append(types.Part.from_bytes(data=src.get('data', ''), mime_type=src.get('media_type', 'application/pdf')))
 
     errors = []
-    for prov in fallback_queue:
-        res, err = None, None
-        if prov == 'google':
-            pref = cfg.get('gemini_model', '').strip()
-            models = [pref] if pref else RECOMMENDED_MODELS['google']
-            res, err = try_google(cfg, pref, gemini_contents, models)
-        elif prov == 'anthropic':
-            res, err = try_anthropic(cfg, cfg.get('anthropic_model', 'claude-3-5-sonnet-latest'), messages)
-        elif prov == 'openai' or prov == 'groq':
-            res, err = try_openai(cfg, cfg.get(f'{prov}_model', RECOMMENDED_MODELS[prov][0]), messages, prov)
-            
-        if res: return res # SUCCESS!
-        if err and "Key missing" not in err:
-            errors.append(err if prov == 'google' else f"{prov.upper()}: {err}")
+    tried_keys = set()
 
-    return JSONResponse(content={'error': " | ".join(errors) or "No hay proveedores configurados correctamente"}, status_code=500)
+    for key in potential_keys:
+        if not key or key in tried_keys: continue
+        tried_keys.add(key)
+        
+        info = smart_dispatch(key)
+        if not info: continue
+        
+        # Override model if user specified one (optional)
+        user_model = cfg.get('model', '').strip()
+        model_to_use = user_model if user_model else info['model']
+        
+        res, err = None, None
+        if info['type'] == 'google':
+            res, err = try_google(cfg, model_to_use, gemini_contents, [model_to_use])
+        elif info['type'] == 'anthropic':
+            # Temporary override cfg key for the helper
+            tmp_cfg = cfg.copy(); tmp_cfg['api_key'] = key
+            res, err = try_anthropic(tmp_cfg, model_to_use, messages)
+        elif info['type'] == 'openai':
+            # Temporary override cfg key and url for the helper
+            tmp_cfg = cfg.copy(); tmp_cfg['openai_key'] = key; tmp_cfg['openai_url'] = info.get('url')
+            res, err = try_openai(tmp_cfg, model_to_use, messages, info['name'].lower())
+            
+        if res:
+            res['provider'] = info['name']
+            return res
+        if err:
+            errors.append(f"{info['name']}: {err}")
+
+    return JSONResponse(content={'error': " | ".join(errors) or "No se detectaron llaves válidas. Revisa la Configuración."}, status_code=500)
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)):
