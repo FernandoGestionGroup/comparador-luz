@@ -6,7 +6,7 @@ import time
 import sys
 import traceback
 
-# --- FASTAPI INIT (Minimal Imports for Speed) ---
+# --- FASTAPI INIT ---
 from fastapi import FastAPI, Body, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,19 +19,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- DIAGNOSTIC PATH RESOLUTION ---
-# Vercel can be tricky with paths. We search for 'public' near the current file.
+# --- PATH RESOLUTION (Inside API folder) ---
 CURRENT_DIR = Path(__file__).resolve().parent
-BASE_DIR = CURRENT_DIR.parent
-
-# Diagnostic: Ensure we can find public/index.html
-PUBLIC_DIR = BASE_DIR / "public"
-if not PUBLIC_DIR.exists():
-    # Fallback to root just in case
-    PUBLIC_DIR = Path("/var/task/public") if os.path.exists("/var/task/public") else BASE_DIR
+PUBLIC_DIR = CURRENT_DIR / "public"
 
 # --- LAZY DATABASE & MODELS ---
-# We use a global dict to store initialized clients only when needed
 _STORAGE = {"db": None}
 
 def get_db():
@@ -55,7 +47,7 @@ def get_db():
         print(f"DB Init Error: {e}")
     return None
 
-# --- GLOBAL ERROR HANDLER (Crucial for Debugging) ---
+# --- GLOBAL ERROR HANDLER ---
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
@@ -64,13 +56,11 @@ async def global_exception_handler(request: Request, exc: Exception):
             "error": str(exc),
             "traceback": traceback.format_exc(),
             "cwd": os.getcwd(),
-            "base_dir": str(BASE_DIR),
-            "public_dir": str(PUBLIC_DIR),
-            "env_keys": list(os.environ.keys())
+            "public": str(PUBLIC_DIR),
+            "exists": PUBLIC_DIR.exists()
         }
     )
 
-# --- HELPERS ---
 def hash_pw(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
@@ -78,89 +68,75 @@ def hash_pw(pw):
 
 @app.get("/api/health")
 async def health():
-    db = get_db()
-    return {
-        "status": "ok", 
-        "db": bool(db), 
-        "python": sys.version,
-        "base": str(BASE_DIR),
-        "public": str(PUBLIC_DIR)
-    }
+    return {"status": "ok", "db": bool(get_db()), "public_exists": PUBLIC_DIR.exists()}
 
 @app.post("/api/login")
 async def login(body: dict = Body(...)):
     db = get_db()
-    if not db: return {'ok': False, 'error': 'Database unavailable'}
+    if not db: return {'ok': False, 'error': 'DB Error'}
     email = body.get('email', '').strip().lower()
     pw = hash_pw(body.get('password', ''))
-    query = db.collection('usuarios').where('email', '==', email).limit(1).get()
-    if not query: return {'ok': False, 'error': 'Credenciales incorrectas'}
-    user = query[0].to_dict()
-    if user.get('password') == pw:
-        return {'ok': True, 'user': {'id': user.get('id'), 'nombre': user.get('nombre'), 'email': user.get('email'), 'role': user.get('role')}}
+    q = db.collection('usuarios').where('email', '==', email).limit(1).get()
+    if not q: return {'ok': False, 'error': 'Credenciales incorrectas'}
+    u = q[0].to_dict()
+    if u.get('password') == pw:
+        return {'ok': True, 'user': {'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']}}
     return {'ok': False, 'error': 'Credenciales incorrectas'}
 
 @app.get("/api/config")
 async def get_config():
     db = get_db()
-    if not db: return {"provider": "anthropic", "idioma": "es"}
-    doc = db.collection('config').document('global').get()
-    cfg = doc.to_dict() if doc.exists else {"provider": "anthropic", "idioma": "es"}
+    if not db: return {"provider": "anthropic"}
+    d = db.collection('config').document('global').get()
+    cfg = d.to_dict() if d.exists else {}
     safe = {k: v for k, v in cfg.items() if k not in ['api_key', 'gemini_key', 'openai_key']}
-    safe['has_api_key'] = bool(cfg.get('api_key'))
-    safe['has_gemini_key'] = bool(cfg.get('gemini_key'))
-    safe['has_openai_key'] = bool(cfg.get('openai_key'))
+    for k in ['api_key', 'gemini_key', 'openai_key']: safe[f'has_{k}'] = bool(cfg.get(k))
     return safe
 
 @app.post("/api/config")
 async def save_config(body: dict = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
-    doc_ref = db.collection('config').document('global')
-    old = doc_ref.get().to_dict() or {}
-    for key in ['api_key', 'gemini_key', 'openai_key']:
-        if not body.get(key): body[key] = old.get(key, '')
-    doc_ref.set(body)
+    ref = db.collection('config').document('global')
+    old = ref.get().to_dict() or {}
+    for k in ['api_key', 'gemini_key', 'openai_key']:
+        if not body.get(k): body[k] = old.get(k, '')
+    ref.set(body)
     return {'ok': True}
 
 @app.get("/api/ofertas")
 async def get_ofertas():
     db = get_db()
-    if not db: return []
-    return [d.to_dict() for d in db.collection('ofertas').stream()]
+    return [d.to_dict() for d in db.collection('ofertas').stream()] if db else []
 
 @app.post("/api/ofertas")
 async def save_ofertas(body: list = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
     batch = db.batch()
-    # Simplified target-sync
-    existing = {d.id for d in db.collection('ofertas').stream()}
-    incoming = {o.get('id') for o in body if o.get('id')}
-    for ofr in body:
-        oid = ofr.get('id')
-        if oid: batch.set(db.collection('ofertas').document(oid), ofr)
-    for oid in (existing - incoming): batch.delete(db.collection('ofertas').document(oid))
+    exist = {d.id for d in db.collection('ofertas').stream()}
+    incom = {o.get('id') for o in body if o.get('id')}
+    for o in body:
+        if o.get('id'): batch.set(db.collection('ofertas').document(o['id']), o)
+    for oid in (exist - incom): batch.delete(db.collection('ofertas').document(oid))
     batch.commit()
     return {'ok': True}
 
 @app.get("/api/comisiones")
 async def get_comisiones():
     db = get_db()
-    if not db: return []
-    return [d.to_dict() for d in db.collection('comisiones').stream()]
+    return [d.to_dict() for d in db.collection('comisiones').stream()] if db else []
 
 @app.post("/api/comisiones")
 async def save_comisiones(body: list = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
     batch = db.batch()
-    existing = {d.id for d in db.collection('comisiones').stream()}
-    incoming = {c.get('id') for c in body if c.get('id')}
-    for com in body:
-        cid = com.get('id')
-        if cid: batch.set(db.collection('comisiones').document(cid), com)
-    for cid in (existing - incoming): batch.delete(db.collection('comisiones').document(cid))
+    exist = {d.id for d in db.collection('comisiones').stream()}
+    incom = {c.get('id') for c in body if c.get('id')}
+    for c in body:
+        if c.get('id'): batch.set(db.collection('comisiones').document(c['id']), c)
+    for cid in (exist - incom): batch.delete(db.collection('comisiones').document(cid))
     batch.commit()
     return {'ok': True}
 
@@ -168,7 +144,7 @@ async def save_comisiones(body: list = Body(...)):
 async def get_usuarios():
     db = get_db()
     if not db: return []
-    return [{'id': u.get('id'), 'nombre': u.get('nombre'), 'email': u.get('email'), 'role': u.get('role')} for u in [d.to_dict() for d in db.collection('usuarios').stream()]]
+    return [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']} for u in [d.to_dict() for d in db.collection('usuarios').stream()]]
 
 @app.post("/api/usuarios")
 async def manage_usuarios(body: dict = Body(...)):
@@ -177,28 +153,35 @@ async def manage_usuarios(body: dict = Body(...)):
     action, uid = body.get('action'), body.get('id')
     ref = db.collection('usuarios')
     if action == 'create':
-        new_id = str(int(time.time() * 1000))
-        ref.document(new_id).set({'id': new_id, 'nombre': body.get('nombre'), 'email': body.get('email', '').strip().lower(), 'password': hash_pw(body.get('password','') or 'cambiar123'), 'role': body.get('role','comercial')})
+        nid = str(int(time.time() * 1000))
+        ref.document(nid).set({'id': nid, 'nombre': body.get('nombre'), 'email': body.get('email', '').strip().lower(), 'password': hash_pw(body.get('password','') or 'cambiar123'), 'role': body.get('role','comercial')})
     elif action == 'update' and uid:
-        data = {k: v for k, v in body.items() if k in ['nombre', 'email', 'role']}
-        if body.get('password'): data['password'] = hash_pw(body['password'])
-        ref.document(uid).update(data)
+        d = {k: v for k, v in body.items() if k in ['nombre', 'email', 'role']}
+        if body.get('password'): d['password'] = hash_pw(body['password'])
+        ref.document(uid).update(d)
     elif action == 'delete' and uid:
         ref.document(uid).delete()
     return {'ok': True}
 
-# --- EXTRACTOR (LAZY IMPORTS) ---
 @app.post("/api/extract")
 async def extract_invoice(body: dict = Body(...)):
-    # Standardizing response for now to ensure front works while AI is optimized
-    import anthropic
-    from google import genai
-    from openai import OpenAI
-    # ... logic stays equivalent but inside function to avoid startup delay
+    # Standardizing response for now
     return JSONResponse(status_code=200, content={"text": "{}", "provider": "Lazy Mode"})
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
 
-@app.post("/api/claude")
-async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
+# --- SERVING FRONTEND (FINALLY STABLE) ---
+@app.get("/")
+async def serve_root():
+    index = PUBLIC_DIR / "index.html"
+    if index.exists(): return FileResponse(str(index))
+    return JSONResponse({"error": "index.html not found", "path": str(index)})
+
+@app.get("/{path:path}")
+async def serve_static(path: str):
+    file = PUBLIC_DIR / path
+    if file.is_file(): return FileResponse(str(file))
+    index = PUBLIC_DIR / "index.html"
+    if index.exists(): return FileResponse(str(index))
+    return JSONResponse({"error": f"File {path} not found"})
