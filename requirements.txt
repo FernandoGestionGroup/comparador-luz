@@ -5,4 +5,3 @@ anthropic
 python-multipart
 openai
 google-generativeai
-openai
