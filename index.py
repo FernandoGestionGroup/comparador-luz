@@ -10,7 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials, firestore
 import anthropic
-import google.generativeai as genai
+import google.genai as genai
+from google.genai import types
 from openai import OpenAI
 
 app = FastAPI()
@@ -129,25 +130,28 @@ async def extract_invoice(body: dict = Body(...)):
             if provider == 'google':
                 key = cfg.get('gemini_key', '')
                 if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
-                genai.configure(api_key=key)
                 
-                simple_name = model_name.replace('models/', '')
-                model = genai.GenerativeModel(simple_name)
+                # Using modern client (defaults to v1 stable in 2026 SDK)
+                client = genai.Client(api_key=key, http_options={'api_version': 'v1'})
                 
-                parts = []
+                # Convert messages to new format
+                contents = []
                 for msg in messages:
-                    for content in msg.get('content', []):
-                        if content['type'] == 'text':
-                            parts.append(content['text'])
-                        elif content['type'] == 'image' or content['type'] == 'document':
-                            src = content.get('source', {})
-                            parts.append({
-                                "mime_type": src.get('media_type', 'application/pdf'),
-                                "data": src.get('data', '')
-                            })
+                    for cnt in msg.get('content', []):
+                        if cnt['type'] == 'text':
+                            contents.append(cnt['text'])
+                        elif cnt['type'] == 'image' or cnt['type'] == 'document':
+                            src = cnt.get('source', {})
+                            contents.append(types.Part.from_bytes(
+                                data=src.get('data', ''),
+                                mime_type=src.get('media_type', 'application/pdf')
+                            ))
                 
-                response = model.generate_content(parts)
-                return {'text': response.text, 'model': simple_name}
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents
+                )
+                return {'text': response.text, 'model': model_name}
 
             elif provider == 'openai' or provider == 'groq':
                 is_groq = (provider == 'groq')

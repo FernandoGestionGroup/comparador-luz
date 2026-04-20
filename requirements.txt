@@ -4,4 +4,4 @@ firebase-admin
 anthropic
 python-multipart
 openai
-google-generativeai
+google-genai
