@@ -4,8 +4,9 @@
 !package.json
 
 # API / Public (Migration cleanup)
-api/
-public/
+# No ignorar estas carpetas ya que contienen la app final
+# !api/
+# !public/
 
 # Python
 __pycache__/
