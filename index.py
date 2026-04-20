@@ -131,6 +131,9 @@ async def extract_invoice(body: dict = Body(...)):
                 key = cfg.get('gemini_key', '')
                 if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
                 
+                from google import genai
+                from google.genai import types
+                
                 # Using modern client (defaults to v1 stable in 2026 SDK)
                 client = genai.Client(api_key=key, http_options={'api_version': 'v1'})
                 
@@ -146,12 +149,48 @@ async def extract_invoice(body: dict = Body(...)):
                                 data=src.get('data', ''),
                                 mime_type=src.get('media_type', 'application/pdf')
                             ))
+
+                # Smart Discovery Fallback
+                discovered_models = []
+                for model_name in models_to_try:
+                    if not model_name: continue
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=contents
+                        )
+                        return {'text': response.text, 'model': model_name}
+                    except Exception as e:
+                        err_str = str(e)
+                        last_error = err_str
+                        is_retryable = any(x in err_str.lower() for x in ['404', 'not found', '429', 'quota', 'limit'])
+                        if not is_retryable: break
                 
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=contents
-                )
-                return {'text': response.text, 'model': model_name}
+                # If we are here, recommended models failed. Let's DISCOVER.
+                try:
+                    for m in client.models.list():
+                        # Only models that support generating content
+                        if 'generateContent' in m.supported_methods:
+                            discovered_models.append(m.name)
+                    
+                    # Sort them: Newer versions and 'flash' first
+                    discovered_models.sort(key=lambda x: ('2.0' in x or 'flash' in x), reverse=True)
+                    
+                    for model_name in discovered_models:
+                        # Skip if we already tried it
+                        if model_name in models_to_try: continue
+                        try:
+                            response = client.models.generate_content(
+                                model=model_name,
+                                contents=contents
+                            )
+                            return {'text': response.text, 'model': model_name}
+                        except:
+                            continue
+                except Exception as de:
+                    last_error = f"Discovery failed: {str(de)} (Original: {last_error})"
+                
+                return JSONResponse(content={'error': last_error}, status_code=500)
 
             elif provider == 'openai' or provider == 'groq':
                 is_groq = (provider == 'groq')
