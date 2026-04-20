@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials, firestore
 import anthropic
+import google.generativeai as genai
+from openai import OpenAI
 
 app = FastAPI()
 
@@ -70,15 +72,21 @@ async def login(body: dict = Body(...)):
 
 @app.get("/api/config")
 async def get_config():
-    cfg = get_doc('config', 'global') or {"api_key": "", "idioma": "es"}
-    safe = {k: v for k, v in cfg.items() if k != 'api_key'}
-    safe['has_api_key'] = bool(cfg.get('api_key', ''))
+    cfg = get_doc('config', 'global') or {"provider": "anthropic", "idioma": "es"}
+    # Mask keys
+    safe = {k: v for k, v in cfg.items() if k not in ['api_key', 'gemini_key', 'openai_key']}
+    safe['has_api_key'] = bool(cfg.get('api_key'))
+    safe['has_gemini_key'] = bool(cfg.get('gemini_key'))
+    safe['has_openai_key'] = bool(cfg.get('openai_key'))
     return safe
 
 @app.post("/api/config")
 async def save_config(body: dict = Body(...)):
     old = get_doc('config', 'global') or {}
+    # Preserve keys if not sent
     if not body.get('api_key'): body['api_key'] = old.get('api_key', '')
+    if not body.get('gemini_key'): body['gemini_key'] = old.get('gemini_key', '')
+    if not body.get('openai_key'): body['openai_key'] = old.get('openai_key', '')
     set_doc('config', 'global', body)
     return {'ok': True}
 
@@ -93,21 +101,81 @@ async def get_usuarios():
     users = get_collection('usuarios')
     return [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']} for u in users]
 
-@app.post("/api/claude")
-async def extract_with_claude(body: dict = Body(...)):
+@app.post("/api/extract")
+async def extract_invoice(body: dict = Body(...)):
     cfg = get_doc('config', 'global') or {}
-    api_key = cfg.get('api_key', '')
-    if not api_key: return JSONResponse(content={'error': 'API Key no configurada'}, status_code=400)
-    client = anthropic.Anthropic(api_key=api_key)
+    provider = cfg.get('provider', 'anthropic')
+    messages = body.get('messages', [])
+    
     try:
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=2000,
-            messages=body.get('messages', [])
-        )
-        return {'text': response.content[0].text}
+        if provider == 'google':
+            key = cfg.get('gemini_key', '')
+            if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
+            genai.configure(api_key=key)
+            model = genai.GenerativeModel(cfg.get('gemini_model', 'gemini-1.5-flash'))
+            
+            # Convert Claude messages format to Gemini parts
+            parts = []
+            for msg in messages:
+                for content in msg.get('content', []):
+                    if content['type'] == 'text':
+                        parts.append(content['text'])
+                    elif content['type'] == 'image' or content['type'] == 'document':
+                        src = content.get('source', {})
+                        parts.append({
+                            "mime_type": src.get('media_type', 'application/pdf'),
+                            "data": src.get('data', '')
+                        })
+            
+            response = model.generate_content(parts)
+            return {'text': response.text}
+
+        elif provider == 'openai':
+            key = cfg.get('openai_key', '')
+            base_url = cfg.get('openai_url', 'https://api.openai.com/v1')
+            if not key: return JSONResponse(content={'error': 'OpenAI API Key no configurada'}, status_code=400)
+            client = OpenAI(api_key=key, base_url=base_url)
+            
+            # Convert Claude messages format to OpenAI messages format
+            oa_messages = []
+            for msg in messages:
+                oa_content = []
+                for content in msg.get('content', []):
+                    if content['type'] == 'text':
+                        oa_content.append({"type": "text", "text": content['text']})
+                    elif content['type'] == 'image':
+                        src = content.get('source', {})
+                        oa_content.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data')}"}
+                        })
+                oa_messages.append({"role": msg.get('role', 'user'), "content": oa_content})
+
+            response = client.chat.completions.create(
+                model=cfg.get('openai_model', 'gpt-4o'),
+                messages=oa_messages,
+                max_tokens=2000
+            )
+            return {'text': response.choices[0].message.content}
+
+        else: # anthropic
+            key = cfg.get('api_key', '')
+            if not key: return JSONResponse(content={'error': 'Anthropic API Key no configurada'}, status_code=400)
+            client = anthropic.Anthropic(api_key=key)
+            response = client.messages.create(
+                model=cfg.get('anthropic_model', 'claude-3-5-sonnet-20241022'),
+                max_tokens=2000,
+                messages=messages
+            )
+            return {'text': response.content[0].text}
+            
     except Exception as e:
         return JSONResponse(content={'error': str(e)}, status_code=500)
+
+@app.post("/api/claude")
+async def legacy_claude(body: dict = Body(...)):
+    # Compatibility with old frontend until updated
+    return await extract_invoice(body)
 
 # --- FRONTEND ROUTES ---
 

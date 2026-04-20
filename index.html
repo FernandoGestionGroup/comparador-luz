@@ -264,15 +264,45 @@
 
     <!-- ══ CONFIGURACIÓN ══ -->
     <div class="page" id="p-cfg">
-      <div class="cfg-section" id="cfg-api">
-        <div class="cfg-title">🔑 API Key Anthropic</div>
+      <div class="cfg-section" id="cfg-ia">
+        <div class="cfg-title">🤖 Configuración de Inteligencia Artificial</div>
         <div class="g2">
-          <div class="field gfull"><label>API KEY</label>
+          <div class="field"><label>PROVEEDOR DE IA</label>
+            <select id="cfg_provider" onchange="uiTogIA()">
+              <option value="anthropic">Claude (Anthropic)</option>
+              <option value="google">Gemini (Google AI Studio - GRATIS)</option>
+              <option value="openai">OpenAI (GPT-4o)</option>
+              <option value="groq">Groq (Llama 3 - Muy Rápido)</option>
+            </select>
+          </div>
+          <div class="field"><label>MODELO</label>
+            <input id="cfg_model" placeholder="ej: claude-3-5-sonnet-20241022">
+          </div>
+        </div>
+
+        <div id="ia_anthropic" class="ia-fields">
+          <div class="field gfull"><label>ANTHROPIC API KEY</label>
             <input type="password" id="cfg_apikey" placeholder="sk-ant-...">
           </div>
         </div>
+
+        <div id="ia_google" class="ia-fields" style="display:none">
+          <div class="field gfull"><label>GEMINI API KEY</label>
+            <input type="password" id="cfg_geminikey" placeholder="AIza...">
+          </div>
+        </div>
+
+        <div id="ia_openai" class="ia-fields" style="display:none">
+          <div class="field gfull"><label>OPENAI / CUSTOM API KEY</label>
+            <input type="password" id="cfg_openaikey" placeholder="sk-...">
+          </div>
+          <div class="field gfull"><label>API BASE URL (Opcional para Groq/OpenRouter)</label>
+            <input id="cfg_openaiurl" placeholder="https://api.openai.com/v1">
+          </div>
+        </div>
+
         <div class="abar" style="border:none;padding:10px 0 0 0">
-          <button class="btn btn-p btn-sm" onclick="saveConfig()">Guardar API Key</button>
+          <button class="btn btn-p btn-sm" onclick="saveConfig()">Guardar Configuración de IA</button>
         </div>
       </div>
 

@@ -200,11 +200,21 @@ async function initApp(){
 
   await Promise.all([loadConfig(), loadOfertas(), loadUsuarios(), loadComisiones()]);
 
+  // Load config into UI
+  $('cfg_provider').value = ST.config.provider || 'anthropic';
+  $('cfg_model').value = ST.config.model || '';
   $('cfg_apikey').value = '';
   $('cfg_apikey').placeholder = ST.config.has_api_key ? '*** API Key guardada ***' : 'sk-ant-...';
+  $('cfg_geminikey').value = '';
+  $('cfg_geminikey').placeholder = ST.config.has_gemini_key ? '*** Gemini Key guardada ***' : 'AIza...';
+  $('cfg_openaikey').value = '';
+  $('cfg_openaikey').placeholder = ST.config.has_openai_key ? '*** API Key guardada ***' : 'sk-...';
+  $('cfg_openaiurl').value = ST.config.openai_url || 'https://api.openai.com/v1';
   $('cfg_idioma').value = ST.config.idioma||'es';
 
-  $('cfg-api').style.display = isAdmin ? '' : 'none';
+  uiTogIA();
+
+  $('cfg-ia').style.display = isAdmin ? '' : 'none';
   $('cfg-users-addbar').style.display = isAdmin ? '' : 'none';
 
   $('g_asesor').value = localStorage.getItem('el_asesor')||'';
@@ -217,6 +227,21 @@ async function initApp(){
   applyLang();
 }
 
+function uiTogIA(){
+  const p = $('cfg_provider').value;
+  document.querySelectorAll('.ia-fields').forEach(el => el.style.display = 'none');
+  $('ia_' + (p === 'groq' ? 'openai' : p)).style.display = 'block';
+  
+  // Optional: Set default models if empty
+  const mod = $('cfg_model');
+  if(!mod.value){
+    if(p==='anthropic') mod.value = 'claude-3-5-sonnet-20241022';
+    if(p==='google') mod.value = 'gemini-1.5-flash';
+    if(p==='openai') mod.value = 'gpt-4o';
+    if(p==='groq') mod.value = 'llama-3-70b-8192';
+  }
+}
+
 // ════════════════════════════════════════════
 // API CALLS
 // ════════════════════════════════════════════
@@ -224,11 +249,30 @@ async function loadConfig(){
   try{ const r=await fetch('/api/config'); ST.config=await r.json(); } catch(e){}
 }
 async function saveConfig(){
-  const newKey = $('cfg_apikey').value.trim();
-  if(newKey) ST.config.api_key = newKey;
-  ST.config.idioma  = $('cfg_idioma').value;
+  const p = $('cfg_provider').value;
+  ST.config.provider = p;
+  ST.config.idioma   = $('cfg_idioma').value;
+  ST.config.model    = $('cfg_model').value.trim();
+  
+  const key_anth = $('cfg_apikey').value.trim();
+  const key_gem  = $('cfg_geminikey').value.trim();
+  const key_oa   = $('cfg_openaikey').value.trim();
+  
+  if(key_anth) ST.config.api_key = key_anth;
+  if(key_gem)  ST.config.gemini_key = key_gem;
+  if(key_oa)   ST.config.openai_key = key_oa;
+  
+  if(p === 'openai' || p === 'groq'){
+    ST.config.openai_url = $('cfg_openaiurl').value.trim();
+    if(p==='groq' && !ST.config.openai_url) ST.config.openai_url = 'https://api.groq.com/openai/v1';
+  }
+
   await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.config)});
-  if(newKey) ST.config.has_api_key = true;
+  
+  if(key_anth) ST.config.has_api_key = true;
+  if(key_gem)  ST.config.has_gemini_key = true;
+  if(key_oa)   ST.config.has_openai_key = true;
+  
   sb('Configuración guardada ✓','ok');
   applyLang();
 }
@@ -484,11 +528,16 @@ const normMime=function(t){
 };
 
 async function extract(){
-  const hasKey = ST.config.has_api_key || !!ST.config.api_key;
-  if(!hasKey){sb('Configura la API Key en Configuración primero','err');return;}
-  if(!ST.files.length){sb('Sube al menos un archivo','err');return;}
-  $('btnEx').disabled=true; sb('Analizando factura con IA…','load');
+  const p = ST.config.provider || 'anthropic';
+  const hasKey = (p==='anthropic' && ST.config.has_api_key) || 
+                 (p==='google' && ST.config.has_gemini_key) || 
+                 ((p==='openai'||p==='groq') && ST.config.has_openai_key);
 
+  if(!hasKey){sb('Configura la API Key para ' + p.toUpperCase() + ' en Configuración','err'); return;}
+  if(!ST.files.length){sb('Sube al menos un archivo','err');return;}
+  $('btnEx').disabled=true; sb('Analizando factura con IA ('+p.toUpperCase()+')…','load');
+
+  // ... (Prompt stays same)
   const prompt='Eres experto en facturas eléctricas españolas. Extrae TODOS los datos. Responde SOLO JSON válido sin markdown:\n'
   +'{"cliente":"","cups":"","comercializadora":"","direccion":"","cp":"","tarifa":"","potencia_kw":0,"dias":0,"fecha_inicio":"YYYY-MM-DD",'
   +'"total_factura":0,"iva_pct":21,"iee_pct":5.1126963,"iee_act":0,"iva_act":0,"dto_energia_act_pct":0,'
@@ -518,7 +567,7 @@ async function extract(){
   uc.push({type:'text',text:note+prompt});
 
   try{
-    const resp=await fetch('/api/claude',{
+    const resp=await fetch('/api/extract',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({messages:[{role:'user',content:uc}]})
     });
