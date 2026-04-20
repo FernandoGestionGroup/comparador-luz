@@ -19,9 +19,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- PATH RESOLUTION (Inside API folder) ---
+# --- PATH RESOLUTION (Vercel-Safe) ---
+# We use 'static' instead of 'public' to avoid Vercel automatic caching/ignoring
 CURRENT_DIR = Path(__file__).resolve().parent
-PUBLIC_DIR = CURRENT_DIR / "public"
+STATIC_DIR = CURRENT_DIR / "static"
 
 # --- LAZY DATABASE & MODELS ---
 _STORAGE = {"db": None}
@@ -56,8 +57,9 @@ async def global_exception_handler(request: Request, exc: Exception):
             "error": str(exc),
             "traceback": traceback.format_exc(),
             "cwd": os.getcwd(),
-            "public": str(PUBLIC_DIR),
-            "exists": PUBLIC_DIR.exists()
+            "static_path": str(STATIC_DIR),
+            "exists": STATIC_DIR.exists(),
+            "dir_contents": os.listdir(str(CURRENT_DIR)) if CURRENT_DIR.exists() else []
         }
     )
 
@@ -68,7 +70,12 @@ def hash_pw(pw):
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "db": bool(get_db()), "public_exists": PUBLIC_DIR.exists()}
+    return {
+        "status": "ok", 
+        "db": bool(get_db()), 
+        "static_exists": STATIC_DIR.exists(),
+        "files": os.listdir(str(STATIC_DIR)) if STATIC_DIR.exists() else []
+    }
 
 @app.post("/api/login")
 async def login(body: dict = Body(...)):
@@ -165,23 +172,23 @@ async def manage_usuarios(body: dict = Body(...)):
 
 @app.post("/api/extract")
 async def extract_invoice(body: dict = Body(...)):
-    # Standardizing response for now
     return JSONResponse(status_code=200, content={"text": "{}", "provider": "Lazy Mode"})
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
 
-# --- SERVING FRONTEND (FINALLY STABLE) ---
+# --- SERVING FRONTEND ---
 @app.get("/")
 async def serve_root():
-    index = PUBLIC_DIR / "index.html"
+    index = STATIC_DIR / "index.html"
     if index.exists(): return FileResponse(str(index))
-    return JSONResponse({"error": "index.html not found", "path": str(index)})
+    return JSONResponse({"error": "index.html not found", "path": str(index), "cwd": os.getcwd()})
 
 @app.get("/{path:path}")
 async def serve_static(path: str):
-    file = PUBLIC_DIR / path
+    if path.startswith("api/"): return JSONResponse({"error": "Route not found"}, status_code=404)
+    file = STATIC_DIR / path
     if file.is_file(): return FileResponse(str(file))
-    index = PUBLIC_DIR / "index.html"
+    index = STATIC_DIR / "index.html"
     if index.exists(): return FileResponse(str(index))
-    return JSONResponse({"error": f"File {path} not found"})
+    return JSONResponse({"error": f"File {path} not found", "tried": str(file)})
