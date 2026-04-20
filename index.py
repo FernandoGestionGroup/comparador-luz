@@ -208,6 +208,7 @@ async def extract_invoice(body: dict = Body(...)):
                 src = cnt.get('source', {})
                 gemini_contents.append(types.Part.from_bytes(data=src.get('data', ''), mime_type=src.get('media_type', 'application/pdf')))
 
+    errors = []
     for prov in fallback_queue:
         res, err = None, None
         if prov == 'google':
@@ -221,9 +222,9 @@ async def extract_invoice(body: dict = Body(...)):
             
         if res: return res # SUCCESS!
         if err and "Key missing" not in err:
-            last_overall_error = f"{prov.upper()}: {err}"
+            errors.append(err if prov == 'google' else f"{prov.upper()}: {err}")
 
-    return JSONResponse(content={'error': f"Todos los proveedores fallaron. Último error: {last_overall_error}"}, status_code=500)
+    return JSONResponse(content={'error': " | ".join(errors) or "No hay proveedores configurados correctamente"}, status_code=500)
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)):
