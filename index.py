@@ -114,35 +114,43 @@ def try_google(cfg, model_name, contents, models_to_try):
     if not key: return None, "Key missing"
     
     last_err = ""
-    # Try both stable (v1) and experimental (v1beta) channels
+    discovered_names = []
+    
     for version in ['v1', 'v1beta']:
-        client = genai.Client(api_key=key, http_options={'api_version': version})
-        
-        # Try recommended models in this version
-        for m in models_to_try:
-            if not m: continue
-            try:
-                res = client.models.generate_content(model=m, contents=contents)
-                return {'text': res.text, 'model': f"{m} ({version})", 'provider': 'Google'}, None
-            except Exception as e:
-                last_err = str(e)
-                # If it's something that's NOT a model-not-found, it might be auth/quota, so return it
-                if not any(x in last_err.lower() for x in ['404', 'not found']):
-                    # If it's a 429 or other, we might still want to try discovery or other version
-                    pass
-        
-        # If no models worked in this version, try discovery in this version
         try:
-            for m in client.models.list():
-                methods = getattr(m, 'supported_generation_methods', [])
-                if 'generateContent' in methods:
-                    try:
-                        res = client.models.generate_content(model=m.name, contents=contents)
-                        return {'text': res.text, 'model': f"{m.name} ({version})", 'provider': 'Google (Discovered)'}, None
-                    except: continue
-        except: pass
-        
-    return None, f"Gemini ({version}): {last_err}"
+            client = genai.Client(api_key=key, http_options={'api_version': version})
+            
+            # Step 1: Discover all models once and store names
+            if not discovered_names:
+                try:
+                    for m in client.models.list():
+                        if 'generateContent' in getattr(m, 'supported_generation_methods', []):
+                            discovered_names.append(m.name)
+                except: pass
+
+            # Step 2: Try recommended models with and without 'models/' prefix
+            current_queue = []
+            for m in models_to_try:
+                if not m: continue
+                current_queue.append(m.replace('models/', ''))
+                current_queue.append(f"models/{m.replace('models/', '')}")
+            
+            # Add discovered models to the end
+            for d in discovered_names:
+                if d not in current_queue: current_queue.append(d)
+
+            for m_id in current_queue:
+                try:
+                    res = client.models.generate_content(model=m_id, contents=contents)
+                    return {'text': res.text, 'model': f"{m_id} ({version})", 'provider': 'Google'}, None
+                except Exception as e:
+                    last_err = str(e)
+                    # Continue loop to next model/version
+        except Exception as ve:
+            last_err = f"Client init error ({version}): {str(ve)}"
+            
+    diag = f"Modelos encontrados en tu cuenta: {', '.join(discovered_names) or 'Ninguno'}"
+    return None, f"Gemini: {last_err}. {diag}"
 
 def try_openai(cfg, model_name, messages, provider='openai'):
     key = cfg.get('openai_key', '')
