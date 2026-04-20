@@ -204,7 +204,13 @@ def smart_dispatch(key):
         return {
             'type': 'openai',
             'url': 'https://openrouter.ai/api/v1',
-            'model': 'google/gemini-2.0-flash-lite-001:free', # Fully FREE model in 2026
+            # List of reliable Vision models for April 2026
+            'models': [
+                'google/gemini-2.0-flash-001',
+                'google/gemini-flash-1.5',
+                'meta-llama/llama-3.2-11b-vision-instruct:free',
+                'openrouter/auto'
+            ],
             'name': 'OpenRouter'
         }
     elif key.startswith('AIza'):
@@ -260,27 +266,30 @@ async def extract_invoice(body: dict = Body(...)):
         info = smart_dispatch(key)
         if not info: continue
         
-        # Override model if user specified one (optional)
+        # Prepare model list (Priority: 1. User specified, 2. Smart Defaults)
         user_model = cfg.get('model', '').strip()
-        model_to_use = user_model if user_model else info['model']
+        models_to_try = [user_model] if user_model else info.get('models', [info.get('model')])
         
-        res, err = None, None
-        if info['type'] == 'google':
-            res, err = try_google(cfg, model_to_use, gemini_contents, [model_to_use])
-        elif info['type'] == 'anthropic':
-            # Temporary override cfg key for the helper
-            tmp_cfg = cfg.copy(); tmp_cfg['api_key'] = key
-            res, err = try_anthropic(tmp_cfg, model_to_use, messages)
-        elif info['type'] == 'openai':
-            # Temporary override cfg key and url for the helper
-            tmp_cfg = cfg.copy(); tmp_cfg['openai_key'] = key; tmp_cfg['openai_url'] = info.get('url')
-            res, err = try_openai(tmp_cfg, model_to_use, messages, info['name'].lower())
+        for model_to_use in models_to_try:
+            if not model_to_use: continue
+            res, err = None, None
+            if info['type'] == 'google':
+                res, err = try_google(cfg, model_to_use, gemini_contents, [model_to_use])
+            elif info['type'] == 'anthropic':
+                tmp_cfg = cfg.copy(); tmp_cfg['api_key'] = key
+                res, err = try_anthropic(tmp_cfg, model_to_use, messages)
+            elif info['type'] == 'openai':
+                tmp_cfg = cfg.copy(); tmp_cfg['openai_key'] = key; tmp_cfg['openai_url'] = info.get('url')
+                res, err = try_openai(tmp_cfg, model_to_use, messages, info['name'].lower())
+                
+            if res:
+                res['provider'] = info['name']
+                return res
             
-        if res:
-            res['provider'] = info['name']
-            return res
-        if err:
-            errors.append(f"{info['name']}: {err}")
+            # If model literal fail (404), continue to next model in list
+            if err:
+                last_err = f"{info['name']} ({model_to_use}): {err}"
+                errors.append(last_err)
 
     return JSONResponse(content={'error': " | ".join(errors) or "No se detectaron llaves válidas. Revisa la Configuración."}, status_code=500)
 
