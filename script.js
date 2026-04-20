@@ -577,8 +577,8 @@ async function extract(){
     if(d.error) throw new Error(d.error);
     const ex=JSON.parse(d.text.replace(/```json|```/g,'').trim());
     fillForm(ex);
-    const used = d.model ? ' (IA: ' + d.model + ')' : '';
-    sb('Extracción completada ✓' + used + ' — Revisa los datos en "Revisión"','ok');
+    const used = d.provider ? 'vía ' + d.provider : 'IA';
+    sb('Extracción completada ✓ (' + used + ') — Revisa los datos en "Revisión"','ok');
     go('rev');
   }catch(e){
     sb('Error: '+e.message,'err');

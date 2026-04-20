@@ -109,143 +109,107 @@ RECOMMENDED_MODELS = {
     'groq': ['llama-3.3-70b-versatile', 'llama3-70b-8192']
 }
 
+def try_google(cfg, model_name, contents, models_to_try):
+    key = cfg.get('gemini_key', '')
+    if not key: return None, "Key missing"
+    client = genai.Client(api_key=key, http_options={'api_version': 'v1'})
+    
+    last_err = ""
+    # Try recommended
+    for m in models_to_try:
+        if not m: continue
+        try:
+            res = client.models.generate_content(model=m, contents=contents)
+            return {'text': res.text, 'model': m, 'provider': 'Google'}, None
+        except Exception as e:
+            last_err = str(e)
+            if not any(x in last_err.lower() for x in ['404', 'not found', '429', 'quota', 'limit']):
+                return None, last_err
+                
+    # Discovery phase
+    try:
+        for m in client.models.list():
+            methods = getattr(m, 'supported_generation_methods', [])
+            if 'generateContent' in methods and m.name not in models_to_try:
+                try:
+                    res = client.models.generate_content(model=m.name, contents=contents)
+                    return {'text': res.text, 'model': m.name, 'provider': 'Google (Discovered)'}, None
+                except: continue
+    except: pass
+    return None, last_err
+
+def try_openai(cfg, model_name, messages, provider='openai'):
+    key = cfg.get('openai_key', '')
+    base_url = cfg.get('openai_url', 'https://api.openai.com/v1')
+    if provider == 'groq' and 'groq' not in base_url: base_url = 'https://api.groq.com/openai/v1'
+    if not key: return None, "Key missing"
+    
+    client = OpenAI(api_key=key, base_url=base_url)
+    oa_messages = []
+    for msg in messages:
+        oa_content = []
+        for content in msg.get('content', []):
+            if content['type'] == 'text':
+                oa_content.append({"type": "text", "text": content['text']})
+            elif content['type'] == 'image':
+                src = content.get('source', {})
+                oa_content.append({"type": "image_url", "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data')}"}})
+        oa_messages.append({"role": msg.get('role', 'user'), "content": oa_content})
+
+    try:
+        res = client.chat.completions.create(model=model_name, messages=oa_messages, max_tokens=2000)
+        return {'text': res.choices[0].message.content, 'model': model_name, 'provider': provider.upper()}, None
+    except Exception as e:
+        return None, str(e)
+
+def try_anthropic(cfg, model_name, messages):
+    key = cfg.get('api_key', '')
+    if not key: return None, "Key missing"
+    client = anthropic.Anthropic(api_key=key)
+    try:
+        res = client.messages.create(model=model_name, max_tokens=2000, messages=messages)
+        return {'text': res.content[0].text, 'model': model_name, 'provider': 'Anthropic'}, None
+    except Exception as e:
+        return None, str(e)
+
 @app.post("/api/extract")
 async def extract_invoice(body: dict = Body(...)):
     cfg = get_doc('config', 'global') or {}
-    provider = cfg.get('provider', 'anthropic')
     messages = body.get('messages', [])
+    selected_provider = cfg.get('provider', 'anthropic')
     
-    # Get user preferred model or the first from our recommended list
-    preferred = cfg.get('gemini_model' if provider=='google' else f'{provider}_model', '').strip()
-    models_to_try = [preferred] if preferred else RECOMMENDED_MODELS.get(provider, [])
-    if preferred and preferred not in RECOMMENDED_MODELS.get(provider, []):
-        # Add the recommended ones as fallbacks if the user chose a specific one
-        models_to_try += RECOMMENDED_MODELS.get(provider, [])
-
-    last_error = "No models available for provider"
+    # Priority List: 1. Selected, 2. Fallbacks
+    all_providers = ['google', 'anthropic', 'openai', 'groq']
+    fallback_queue = [selected_provider] + [p for p in all_providers if p != selected_provider]
     
-    for model_name in models_to_try:
-        if not model_name: continue
-        try:
-            if provider == 'google':
-                key = cfg.get('gemini_key', '')
-                if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
-                
-                from google import genai
-                from google.genai import types
-                
-                # Using modern client (defaults to v1 stable in 2026 SDK)
-                client = genai.Client(api_key=key, http_options={'api_version': 'v1'})
-                
-                # Convert messages to new format
-                contents = []
-                for msg in messages:
-                    for cnt in msg.get('content', []):
-                        if cnt['type'] == 'text':
-                            contents.append(cnt['text'])
-                        elif cnt['type'] == 'image' or cnt['type'] == 'document':
-                            src = cnt.get('source', {})
-                            contents.append(types.Part.from_bytes(
-                                data=src.get('data', ''),
-                                mime_type=src.get('media_type', 'application/pdf')
-                            ))
-
-                # Smart Discovery Fallback
-                discovered_models = []
-                for model_name in models_to_try:
-                    if not model_name: continue
-                    try:
-                        response = client.models.generate_content(
-                            model=model_name,
-                            contents=contents
-                        )
-                        return {'text': response.text, 'model': model_name}
-                    except Exception as e:
-                        err_str = str(e)
-                        last_error = err_str
-                        is_retryable = any(x in err_str.lower() for x in ['404', 'not found', '429', 'quota', 'limit'])
-                        if not is_retryable: break
-                
-                # If we are here, recommended models failed. Let's DISCOVER.
-                try:
-                    for m in client.models.list():
-                        # Use correct attribute name for new SDK
-                        methods = getattr(m, 'supported_generation_methods', [])
-                        if 'generateContent' in methods:
-                            discovered_models.append(m.name)
-                    
-                    # Sort them: Newer versions and 'flash' first
-                    discovered_models.sort(key=lambda x: ('2.0' in x or 'flash' in x), reverse=True)
-                    
-                    for model_name in discovered_models:
-                        # Skip if we already tried it
-                        if model_name in models_to_try: continue
-                        try:
-                            response = client.models.generate_content(
-                                model=model_name,
-                                contents=contents
-                            )
-                            return {'text': response.text, 'model': model_name}
-                        except:
-                            continue
-                except Exception as de:
-                    last_error = f"Discovery failed: {str(de)} (Original: {last_error})"
-                
-                return JSONResponse(content={'error': last_error}, status_code=500)
-
-            elif provider == 'openai' or provider == 'groq':
-                is_groq = (provider == 'groq')
-                key = cfg.get('openai_key', '')
-                base_url = cfg.get('openai_url', 'https://api.openai.com/v1')
-                if is_groq and 'groq' not in base_url: base_url = 'https://api.groq.com/openai/v1'
-                
-                if not key: return JSONResponse(content={'error': f'{provider.upper()} API Key no configurada'}, status_code=400)
-                client = OpenAI(api_key=key, base_url=base_url)
-                
-                oa_messages = []
-                for msg in messages:
-                    oa_content = []
-                    for content in msg.get('content', []):
-                        if content['type'] == 'text':
-                            oa_content.append({"type": "text", "text": content['text']})
-                        elif content['type'] == 'image':
-                            src = content.get('source', {})
-                            oa_content.append({
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data')}"}
-                            })
-                    oa_messages.append({"role": msg.get('role', 'user'), "content": oa_content})
-
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=oa_messages,
-                    max_tokens=2000
-                )
-                return {'text': response.choices[0].message.content, 'model': model_name}
-
-            else: # anthropic
-                key = cfg.get('api_key', '')
-                if not key: return JSONResponse(content={'error': 'Anthropic API Key no configurada'}, status_code=400)
-                client = anthropic.Anthropic(api_key=key)
-                response = client.messages.create(
-                    model=model_name,
-                    max_tokens=2000,
-                    messages=messages
-                )
-                return {'text': response.content[0].text, 'model': model_name}
-                
-        except Exception as e:
-            err_str = str(e)
-            last_error = err_str
-            # If it's a "Not Found" (404) or "Quota/Rate Limit" (429), try next model
-            # For Gemini/Google, check for specific substrings in error
-            is_fallback_case = any(x in err_str.lower() for x in ['404', 'not found', '429', 'quota', 'limit'])
-            if not is_fallback_case:
-                # If it's a persistent error (auth, etc.), don't bother trying other models
-                break
-            # Otherwise, loop continues to next model
+    last_overall_error = "No provider available"
     
-    return JSONResponse(content={'error': last_error}, status_code=500)
+    # Context prepared for Gemini
+    gemini_contents = []
+    from google.genai import types
+    for msg in messages:
+        for cnt in msg.get('content', []):
+            if cnt['type'] == 'text': gemini_contents.append(cnt['text'])
+            elif cnt['type'] in ['image', 'document']:
+                src = cnt.get('source', {})
+                gemini_contents.append(types.Part.from_bytes(data=src.get('data', ''), mime_type=src.get('media_type', 'application/pdf')))
+
+    for prov in fallback_queue:
+        res, err = None, None
+        if prov == 'google':
+            pref = cfg.get('gemini_model', '').strip()
+            models = [pref] if pref else RECOMMENDED_MODELS['google']
+            res, err = try_google(cfg, pref, gemini_contents, models)
+        elif prov == 'anthropic':
+            res, err = try_anthropic(cfg, cfg.get('anthropic_model', 'claude-3-5-sonnet-latest'), messages)
+        elif prov == 'openai' or prov == 'groq':
+            res, err = try_openai(cfg, cfg.get(f'{prov}_model', RECOMMENDED_MODELS[prov][0]), messages, prov)
+            
+        if res: return res # SUCCESS!
+        if err and "Key missing" not in err:
+            last_overall_error = f"{prov.upper()}: {err}"
+
+    return JSONResponse(content={'error': f"Todos los proveedores fallaron. Último error: {last_overall_error}"}, status_code=500)
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)):
