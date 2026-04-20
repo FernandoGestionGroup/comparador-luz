@@ -169,8 +169,9 @@ async def extract_invoice(body: dict = Body(...)):
                 # If we are here, recommended models failed. Let's DISCOVER.
                 try:
                     for m in client.models.list():
-                        # Only models that support generating content
-                        if 'generateContent' in m.supported_methods:
+                        # Use correct attribute name for new SDK
+                        methods = getattr(m, 'supported_generation_methods', [])
+                        if 'generateContent' in methods:
                             discovered_models.append(m.name)
                     
                     # Sort them: Newer versions and 'flash' first
