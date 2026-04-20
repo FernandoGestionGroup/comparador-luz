@@ -1,22 +1,16 @@
+from pathlib import Path
 import os
 import json
 import hashlib
 import time
-from pathlib import Path
+
+# --- FASTAPI INIT ---
 from fastapi import FastAPI, Body, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-import firebase_admin
-from firebase_admin import credentials, firestore
-import anthropic
-from google import genai
-from openai import OpenAI
 
-BASE_DIR = Path(__file__).resolve().parent
 app = FastAPI()
-
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,25 +18,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Firebase
-firebase_creds_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
-if firebase_creds_json:
-    try:
-        creds_dict = json.loads(firebase_creds_json)
-        cred = credentials.Certificate(creds_dict)
-        firebase_admin.initialize_app(cred)
-    except Exception as e:
-        print(f"Firebase Init JSON Error: {e}")
-        # Fallback to default if JSON fails
-        try: firebase_admin.initialize_app()
-        except: pass
-else:
-    try:
-        firebase_admin.initialize_app()
-    except:
-        pass
+BASE_DIR = Path(__file__).resolve().parent
 
-db = firestore.client() if firebase_admin._apps else None
+# --- LAZY/SAFE IMPORTS & FIREBASE ---
+db = None
+try:
+    import firebase_admin
+    from firebase_admin import credentials, firestore
+    import anthropic
+    from google import genai
+    from openai import OpenAI
+
+    # Initialize Firebase
+    if not firebase_admin._apps:
+        firebase_creds_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
+        if firebase_creds_json:
+            try:
+                creds_dict = json.loads(firebase_creds_json)
+                cred = credentials.Certificate(creds_dict)
+                firebase_admin.initialize_app(cred)
+            except Exception as e:
+                print(f"Firebase JSON Error: {e}")
+                try: firebase_admin.initialize_app()
+                except: pass
+        else:
+            try: firebase_admin.initialize_app()
+            except: pass
+    
+    if firebase_admin._apps:
+        db = firestore.client()
+except Exception as e:
+    print(f"Startup/Import Error: {e}")
 
 # --- HELPERS ---
 def hash_pw(pw):
@@ -413,23 +419,23 @@ async def legacy_claude(body: dict = Body(...)):
 # --- FRONTEND ROUTES ---
 
 @app.get("/")
-async def serve_index():
-    index_path = BASE_DIR / "public" / "index.html"
-    return FileResponse(str(index_path))
-
-# Mount static files
-if (BASE_DIR / "public").exists():
-    app.mount("/public", StaticFiles(directory=str(BASE_DIR / "public")), name="public")
-
-# Helper to serve from root (script.js, style.css, etc.)
-@app.get("/{file_path:path}")
-async def serve_static(file_path: str):
-    if not file_path or file_path == "/":
-        return FileResponse(str(BASE_DIR / "public" / "index.html"))
-        
-    full_path = BASE_DIR / "public" / file_path
-    if full_path.is_file():
-        return FileResponse(str(full_path))
-        
-    # Default to index.html for SPA behavior
+async def serve_root():
     return FileResponse(str(BASE_DIR / "public" / "index.html"))
+
+# Mount static files (only if dir exists)
+public_path = BASE_DIR / "public"
+if public_path.exists():
+    app.mount("/public", StaticFiles(directory=str(public_path)), name="public")
+
+@app.get("/{file_path:path}")
+async def serve_static_files(file_path: str):
+    # Security: prevent path traversal if any
+    safe_path = (public_path / file_path).resolve()
+    if not str(safe_path).startswith(str(public_path)):
+        return FileResponse(str(public_path / "index.html"))
+
+    if safe_path.is_file():
+        return FileResponse(str(safe_path))
+    
+    # Return index.html for SPA/Unknown paths
+    return FileResponse(str(public_path / "index.html"))
