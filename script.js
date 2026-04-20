@@ -203,6 +203,7 @@ async function initApp(){
   // Load config into UI
   $('cfg_provider').value = ST.config.provider || 'anthropic';
   $('cfg_model').value = ST.config.model || '';
+  $('cfg_model').placeholder = 'Auto (Recomendado)';
   $('cfg_apikey').value = '';
   $('cfg_apikey').placeholder = ST.config.has_api_key ? '*** API Key guardada ***' : 'sk-ant-...';
   $('cfg_geminikey').value = '';
@@ -232,12 +233,14 @@ function uiTogIA(){
   document.querySelectorAll('.ia-fields').forEach(el => el.style.display = 'none');
   $('ia_' + (p === 'groq' ? 'openai' : p)).style.display = 'block';
   
-  // Set recommended default models automatically
+  // Update placeholder with recommended default
   const mod = $('cfg_model');
-  if(p==='anthropic') mod.value = 'claude-3-5-sonnet-20241022';
-  else if(p==='google') mod.value = 'gemini-2.0-flash';
-  else if(p==='openai') mod.value = 'gpt-4o';
-  else if(p==='groq') mod.value = 'llama-3-70b-8192';
+  let d = '';
+  if(p==='anthropic') d = 'claude-3-5-sonnet-latest';
+  else if(p==='google') d = 'gemini-2.0-flash';
+  else if(p==='openai') d = 'gpt-4o';
+  else if(p==='groq') d = 'llama-3.3-70b-versatile';
+  mod.placeholder = 'Auto (' + d + ')';
 }
 
 // ════════════════════════════════════════════
@@ -574,7 +577,8 @@ async function extract(){
     if(d.error) throw new Error(d.error);
     const ex=JSON.parse(d.text.replace(/```json|```/g,'').trim());
     fillForm(ex);
-    sb('Extracción completada ✓ — Revisa los datos en "Revisión"','ok');
+    const used = d.model ? ' (IA: ' + d.model + ')' : '';
+    sb('Extracción completada ✓' + used + ' — Revisa los datos en "Revisión"','ok');
     go('rev');
   }catch(e){
     sb('Error: '+e.message,'err');

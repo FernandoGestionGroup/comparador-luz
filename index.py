@@ -101,89 +101,107 @@ async def get_usuarios():
     users = get_collection('usuarios')
     return [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']} for u in users]
 
+RECOMMENDED_MODELS = {
+    'google': ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash'],
+    'anthropic': ['claude-3-5-sonnet-20241022', 'claude-3-5-sonnet-latest'],
+    'openai': ['gpt-4o', 'gpt-4o-mini'],
+    'groq': ['llama-3.3-70b-versatile', 'llama3-70b-8192']
+}
+
 @app.post("/api/extract")
 async def extract_invoice(body: dict = Body(...)):
     cfg = get_doc('config', 'global') or {}
     provider = cfg.get('provider', 'anthropic')
     messages = body.get('messages', [])
     
-    try:
-        if provider == 'google':
-            key = cfg.get('gemini_key', '')
-            if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
-            genai.configure(api_key=key)
-            
-            # Use provided model or stable default (gemini-2.0-flash is current standard)
-            model_name = cfg.get('gemini_model', 'gemini-2.0-flash')
-            if not model_name.startswith('models/'): 
-                # Handle cases where user might have put the full name or just the short one
-                if '/' not in model_name:
-                    model_name = f'models/{model_name}'
-                else:
-                    model_name = model_name # keep it
-            
-            # Simplified: genai often handles short names better if using GenerativeModel
-            # Let's be safe and use the most common working format
-            simple_name = model_name.replace('models/', '')
-            model = genai.GenerativeModel(simple_name)
-            
-            # Convert Claude messages format to Gemini parts
-            parts = []
-            for msg in messages:
-                for content in msg.get('content', []):
-                    if content['type'] == 'text':
-                        parts.append(content['text'])
-                    elif content['type'] == 'image' or content['type'] == 'document':
-                        src = content.get('source', {})
-                        parts.append({
-                            "mime_type": src.get('media_type', 'application/pdf'),
-                            "data": src.get('data', '')
-                        })
-            
-            response = model.generate_content(parts)
-            return {'text': response.text}
+    # Get user preferred model or the first from our recommended list
+    preferred = cfg.get('gemini_model' if provider=='google' else f'{provider}_model', '').strip()
+    models_to_try = [preferred] if preferred else RECOMMENDED_MODELS.get(provider, [])
+    if preferred and preferred not in RECOMMENDED_MODELS.get(provider, []):
+        # Add the recommended ones as fallbacks if the user chose a specific one
+        models_to_try += RECOMMENDED_MODELS.get(provider, [])
 
-        elif provider == 'openai':
-            key = cfg.get('openai_key', '')
-            base_url = cfg.get('openai_url', 'https://api.openai.com/v1')
-            if not key: return JSONResponse(content={'error': 'OpenAI API Key no configurada'}, status_code=400)
-            client = OpenAI(api_key=key, base_url=base_url)
-            
-            # Convert Claude messages format to OpenAI messages format
-            oa_messages = []
-            for msg in messages:
-                oa_content = []
-                for content in msg.get('content', []):
-                    if content['type'] == 'text':
-                        oa_content.append({"type": "text", "text": content['text']})
-                    elif content['type'] == 'image':
-                        src = content.get('source', {})
-                        oa_content.append({
-                            "type": "image_url",
-                            "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data')}"}
-                        })
-                oa_messages.append({"role": msg.get('role', 'user'), "content": oa_content})
+    last_error = "No models available for provider"
+    
+    for model_name in models_to_try:
+        if not model_name: continue
+        try:
+            if provider == 'google':
+                key = cfg.get('gemini_key', '')
+                if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
+                genai.configure(api_key=key)
+                
+                simple_name = model_name.replace('models/', '')
+                model = genai.GenerativeModel(simple_name)
+                
+                parts = []
+                for msg in messages:
+                    for content in msg.get('content', []):
+                        if content['type'] == 'text':
+                            parts.append(content['text'])
+                        elif content['type'] == 'image' or content['type'] == 'document':
+                            src = content.get('source', {})
+                            parts.append({
+                                "mime_type": src.get('media_type', 'application/pdf'),
+                                "data": src.get('data', '')
+                            })
+                
+                response = model.generate_content(parts)
+                return {'text': response.text, 'model': simple_name}
 
-            response = client.chat.completions.create(
-                model=cfg.get('openai_model', 'gpt-4o'),
-                messages=oa_messages,
-                max_tokens=2000
-            )
-            return {'text': response.choices[0].message.content}
+            elif provider == 'openai' or provider == 'groq':
+                is_groq = (provider == 'groq')
+                key = cfg.get('openai_key', '')
+                base_url = cfg.get('openai_url', 'https://api.openai.com/v1')
+                if is_groq and 'groq' not in base_url: base_url = 'https://api.groq.com/openai/v1'
+                
+                if not key: return JSONResponse(content={'error': f'{provider.upper()} API Key no configurada'}, status_code=400)
+                client = OpenAI(api_key=key, base_url=base_url)
+                
+                oa_messages = []
+                for msg in messages:
+                    oa_content = []
+                    for content in msg.get('content', []):
+                        if content['type'] == 'text':
+                            oa_content.append({"type": "text", "text": content['text']})
+                        elif content['type'] == 'image':
+                            src = content.get('source', {})
+                            oa_content.append({
+                                "type": "image_url",
+                                "image_url": {"url": f"data:{src.get('media_type')};base64,{src.get('data')}"}
+                            })
+                    oa_messages.append({"role": msg.get('role', 'user'), "content": oa_content})
 
-        else: # anthropic
-            key = cfg.get('api_key', '')
-            if not key: return JSONResponse(content={'error': 'Anthropic API Key no configurada'}, status_code=400)
-            client = anthropic.Anthropic(api_key=key)
-            response = client.messages.create(
-                model=cfg.get('anthropic_model', 'claude-3-5-sonnet-20241022'),
-                max_tokens=2000,
-                messages=messages
-            )
-            return {'text': response.content[0].text}
-            
-    except Exception as e:
-        return JSONResponse(content={'error': str(e)}, status_code=500)
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=oa_messages,
+                    max_tokens=2000
+                )
+                return {'text': response.choices[0].message.content, 'model': model_name}
+
+            else: # anthropic
+                key = cfg.get('api_key', '')
+                if not key: return JSONResponse(content={'error': 'Anthropic API Key no configurada'}, status_code=400)
+                client = anthropic.Anthropic(api_key=key)
+                response = client.messages.create(
+                    model=model_name,
+                    max_tokens=2000,
+                    messages=messages
+                )
+                return {'text': response.content[0].text, 'model': model_name}
+                
+        except Exception as e:
+            err_str = str(e)
+            last_error = err_str
+            # If it's a "Not Found" (404) or "Quota/Rate Limit" (429), try next model
+            # For Gemini/Google, check for specific substrings in error
+            is_fallback_case = any(x in err_str.lower() for x in ['404', 'not found', '429', 'quota', 'limit'])
+            if not is_fallback_case:
+                # If it's a persistent error (auth, etc.), don't bother trying other models
+                break
+            # Otherwise, loop continues to next model
+    
+    return JSONResponse(content={'error': last_error}, status_code=500)
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)):
