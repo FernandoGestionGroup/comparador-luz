@@ -149,8 +149,8 @@ def try_google(cfg, model_name, contents, models_to_try):
         except Exception as ve:
             last_err = f"Client init error ({version}): {str(ve)}"
             
-    diag = f"Modelos encontrados en tu cuenta: {', '.join(discovered_names) or 'Ninguno'}. Llave usada: {key[:4]}..."
-    return None, f"Gemini: {last_err}. {diag}"
+    diag = f"[Diagnóstico Google] Modelos: {', '.join(discovered_names) or 'Ninguno'}. Llave probada: {key[:4]}..."
+    return None, f"Google: {last_err}. {diag}"
 
 def try_openai(cfg, model_name, messages, provider='openai'):
     key = cfg.get('openai_key', '')
@@ -204,7 +204,7 @@ def smart_dispatch(key):
         return {
             'type': 'openai',
             'url': 'https://openrouter.ai/api/v1',
-            'model': 'google/gemini-2.0-flash-001',
+            'model': 'google/gemini-2.0-flash-lite-001:free', # Fully FREE model in 2026
             'name': 'OpenRouter'
         }
     elif key.startswith('AIza'):
