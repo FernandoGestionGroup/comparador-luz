@@ -113,8 +113,8 @@ async def extract_invoice(body: dict = Body(...)):
             if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
             genai.configure(api_key=key)
             
-            # Use provided model or stable default
-            model_name = cfg.get('gemini_model', 'gemini-1.5-flash-latest')
+            # Use provided model or stable default (gemini-2.0-flash is current standard)
+            model_name = cfg.get('gemini_model', 'gemini-2.0-flash')
             if not model_name.startswith('models/'): 
                 # Handle cases where user might have put the full name or just the short one
                 if '/' not in model_name:

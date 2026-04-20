@@ -235,7 +235,7 @@ function uiTogIA(){
   // Set recommended default models automatically
   const mod = $('cfg_model');
   if(p==='anthropic') mod.value = 'claude-3-5-sonnet-20241022';
-  else if(p==='google') mod.value = 'gemini-1.5-flash-latest';
+  else if(p==='google') mod.value = 'gemini-2.0-flash';
   else if(p==='openai') mod.value = 'gpt-4o';
   else if(p==='groq') mod.value = 'llama-3-70b-8192';
 }
