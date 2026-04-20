@@ -6,7 +6,7 @@ import time
 
 # --- FASTAPI INIT ---
 from fastapi import FastAPI, Body, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -259,3 +259,15 @@ async def extract_invoice(body: dict = Body(...)):
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
+
+# --- SERVIR FRONTEND ---
+@app.get("/")
+async def serve_index():
+    return FileResponse(str(BASE_DIR / "public" / "index.html"))
+
+@app.get("/{path:path}")
+async def serve_static(path: str):
+    file_path = BASE_DIR / "public" / path
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+    return FileResponse(str(BASE_DIR / "public" / "index.html"))
