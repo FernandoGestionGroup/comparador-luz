@@ -1,0 +1,27 @@
+# Firebase Keys & Secrets
+*.json
+!vercel.json
+!package.json
+
+# API / Public (Migration cleanup)
+api/
+public/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+env/
+venv/
+.env
+
+# Old build files
+VERSION 1.1/
+VERSION BETA/
+INICIAR.bat
+estudio_luz.py
+apply_i18n.py
+tmp_translator.py
+migrate_to_firebase.py
+migrate_to_firebase_json.py
+backups/
