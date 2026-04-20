@@ -2,7 +2,7 @@ import os
 import json
 import hashlib
 import time
-from typing import List
+from pathlib import Path
 from fastapi import FastAPI, Body, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,10 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials, firestore
 import anthropic
-import google.genai as genai
-from google.genai import types
+from google import genai
 from openai import OpenAI
 
+BASE_DIR = Path(__file__).resolve().parent
 app = FastAPI()
 
 # Enable CORS
@@ -32,7 +32,10 @@ if firebase_creds_json:
         cred = credentials.Certificate(creds_dict)
         firebase_admin.initialize_app(cred)
     except Exception as e:
-        print(f"Firebase Init Error: {e}")
+        print(f"Firebase Init JSON Error: {e}")
+        # Fallback to default if JSON fails
+        try: firebase_admin.initialize_app()
+        except: pass
 else:
     try:
         firebase_admin.initialize_app()
@@ -358,13 +361,12 @@ async def extract_invoice(body: dict = Body(...)):
     
     # Context prepared for Gemini
     gemini_contents = []
-    from google.genai import types
     for msg in messages:
         for cnt in msg.get('content', []):
             if cnt['type'] == 'text': gemini_contents.append(cnt['text'])
             elif cnt['type'] in ['image', 'document']:
                 src = cnt.get('source', {})
-                gemini_contents.append(types.Part.from_bytes(data=src.get('data', ''), mime_type=src.get('media_type', 'application/pdf')))
+                gemini_contents.append(genai.types.Part.from_bytes(data=src.get('data', ''), mime_type=src.get('media_type', 'application/pdf')))
 
     errors = []
     tried_keys = set()
@@ -412,16 +414,22 @@ async def legacy_claude(body: dict = Body(...)):
 
 @app.get("/")
 async def serve_index():
-    return FileResponse('public/index.html')
+    index_path = BASE_DIR / "public" / "index.html"
+    return FileResponse(str(index_path))
 
 # Mount static files
-app.mount("/public", StaticFiles(directory="public"), name="public")
+if (BASE_DIR / "public").exists():
+    app.mount("/public", StaticFiles(directory=str(BASE_DIR / "public")), name="public")
 
 # Helper to serve from root (script.js, style.css, etc.)
 @app.get("/{file_path:path}")
 async def serve_static(file_path: str):
-    full_path = os.path.join("public", file_path)
-    if os.path.isfile(full_path):
-        return FileResponse(full_path)
-    # Default to index.html for frontend routing
-    return FileResponse("public/index.html")
+    if not file_path or file_path == "/":
+        return FileResponse(str(BASE_DIR / "public" / "index.html"))
+        
+    full_path = BASE_DIR / "public" / file_path
+    if full_path.is_file():
+        return FileResponse(str(full_path))
+        
+    # Default to index.html for SPA behavior
+    return FileResponse(str(BASE_DIR / "public" / "index.html"))
