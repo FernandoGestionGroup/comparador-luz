@@ -232,14 +232,12 @@ function uiTogIA(){
   document.querySelectorAll('.ia-fields').forEach(el => el.style.display = 'none');
   $('ia_' + (p === 'groq' ? 'openai' : p)).style.display = 'block';
   
-  // Optional: Set default models if empty
+  // Set recommended default models automatically
   const mod = $('cfg_model');
-  if(!mod.value){
-    if(p==='anthropic') mod.value = 'claude-3-5-sonnet-20241022';
-    if(p==='google') mod.value = 'gemini-1.5-flash';
-    if(p==='openai') mod.value = 'gpt-4o';
-    if(p==='groq') mod.value = 'llama-3-70b-8192';
-  }
+  if(p==='anthropic') mod.value = 'claude-3-5-sonnet-20241022';
+  else if(p==='google') mod.value = 'gemini-1.5-flash-latest';
+  else if(p==='openai') mod.value = 'gpt-4o';
+  else if(p==='groq') mod.value = 'llama-3-70b-8192';
 }
 
 // ════════════════════════════════════════════
@@ -249,6 +247,7 @@ async function loadConfig(){
   try{ const r=await fetch('/api/config'); ST.config=await r.json(); } catch(e){}
 }
 async function saveConfig(){
+  if(!confirm(t('¿Deseas guardar los cambios en la configuración?'))) return;
   const p = $('cfg_provider').value;
   ST.config.provider = p;
   ST.config.idioma   = $('cfg_idioma').value;

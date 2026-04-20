@@ -112,7 +112,20 @@ async def extract_invoice(body: dict = Body(...)):
             key = cfg.get('gemini_key', '')
             if not key: return JSONResponse(content={'error': 'Gemini API Key no configurada'}, status_code=400)
             genai.configure(api_key=key)
-            model = genai.GenerativeModel(cfg.get('gemini_model', 'gemini-1.5-flash'))
+            
+            # Use provided model or stable default
+            model_name = cfg.get('gemini_model', 'gemini-1.5-flash-latest')
+            if not model_name.startswith('models/'): 
+                # Handle cases where user might have put the full name or just the short one
+                if '/' not in model_name:
+                    model_name = f'models/{model_name}'
+                else:
+                    model_name = model_name # keep it
+            
+            # Simplified: genai often handles short names better if using GenerativeModel
+            # Let's be safe and use the most common working format
+            simple_name = model_name.replace('models/', '')
+            model = genai.GenerativeModel(simple_name)
             
             # Convert Claude messages format to Gemini parts
             parts = []
