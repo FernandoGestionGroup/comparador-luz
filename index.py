@@ -63,12 +63,31 @@ def get_collection(collection):
 
 @app.post("/api/login")
 async def login(body: dict = Body(...)):
+    if not db: return {'ok': False, 'error': 'Database not initialized'}
     email = body.get('email', '').strip().lower()
     pw = hash_pw(body.get('password', ''))
-    users = get_collection('usuarios')
-    user = next((u for u in users if u['email'].lower() == email and u['password'] == pw), None)
-    if user:
-        return {'ok': True, 'user': {'id': user['id'], 'nombre': user['nombre'], 'email': user['email'], 'role': user['role']}}
+    
+    # Selective query: Much faster and cheaper than get_collection
+    try:
+        query = db.collection('usuarios').where('email', '==', email).limit(1).get()
+        if not query:
+            return {'ok': False, 'error': 'Credenciales incorrectas'}
+        
+        user = query[0].to_dict()
+        if user.get('password') == pw:
+            return {
+                'ok': True, 
+                'user': {
+                    'id': user.get('id'), 
+                    'nombre': user.get('nombre'), 
+                    'email': user.get('email'), 
+                    'role': user.get('role')
+                }
+            }
+    except Exception as e:
+        print(f"Login error: {e}")
+        return {'ok': False, 'error': 'Internal server error'}
+        
     return {'ok': False, 'error': 'Credenciales incorrectas'}
 
 @app.get("/api/config")
@@ -92,15 +111,107 @@ async def save_config(body: dict = Body(...)):
     return {'ok': True}
 
 @app.get("/api/ofertas")
-async def get_ofertas(): return get_collection('ofertas')
+async def get_ofertas(): 
+    return get_collection('ofertas')
+
+@app.post("/api/ofertas")
+async def save_ofertas(body: List[dict] = Body(...)):
+    if not db: return {'ok': False, 'error': 'Database not initialized'}
+    
+    # Incremental update logic: 
+    # 1. Get existing IDs
+    existing_docs = db.collection('ofertas').stream()
+    existing_ids = {doc.id for doc in existing_docs}
+    incoming_ids = {o.get('id') for o in body if o.get('id')}
+    
+    batch = db.batch()
+    # 2. Update or Create
+    for ofr in body:
+        oid = ofr.get('id')
+        if not oid: continue
+        batch.set(db.collection('ofertas').document(oid), ofr)
+    
+    # 3. Targeted Delete (orphans)
+    to_delete = existing_ids - incoming_ids
+    for oid in to_delete:
+        batch.delete(db.collection('ofertas').document(oid))
+    
+    batch.commit()
+    return {'ok': True}
 
 @app.get("/api/comisiones")
-async def get_comisiones(): return get_collection('comisiones')
+async def get_comisiones(): 
+    return get_collection('comisiones')
+
+@app.post("/api/comisiones")
+async def save_comisiones(body: List[dict] = Body(...)):
+    if not db: return {'ok': False, 'error': 'Database not initialized'}
+    
+    existing_docs = db.collection('comisiones').stream()
+    existing_ids = {doc.id for doc in existing_docs}
+    incoming_ids = {c.get('id') for c in body if c.get('id')}
+    
+    batch = db.batch()
+    for com in body:
+        cid = com.get('id')
+        if not cid: continue
+        batch.set(db.collection('comisiones').document(cid), com)
+    
+    # Targeted delete for commissions no longer in the list
+    to_delete_coms = existing_ids - incoming_ids
+    for cid in to_delete_coms:
+        batch.delete(db.collection('comisiones').document(cid))
+        
+    batch.commit()
+    return {'ok': True}
 
 @app.get("/api/usuarios")
 async def get_usuarios():
     users = get_collection('usuarios')
-    return [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']} for u in users]
+    return [{'id': u.get('id'), 'nombre': u.get('nombre'), 'email': u.get('email'), 'role': u.get('role')} for u in users]
+
+@app.post("/api/usuarios")
+async def manage_usuarios(body: dict = Body(...)):
+    if not db: return {'ok': False, 'error': 'Database not initialized'}
+    action = body.get('action')
+    users_ref = db.collection('usuarios')
+    
+    if action == 'create':
+        email = body.get('email', '').strip().lower()
+        existing = users_ref.where('email', '==', email).limit(1).get()
+        if existing:
+            return {'ok': False, 'error': 'El email ya existe'}
+            
+        new_id = str(int(time.time() * 1000))
+        pw = hash_pw(body.get('password', '')) if body.get('password') else hash_pw('cambiar123')
+        user_data = {
+            'id': new_id,
+            'nombre': body.get('nombre'),
+            'email': email,
+            'password': pw,
+            'role': body.get('role', 'comercial')
+        }
+        users_ref.document(new_id).set(user_data)
+        
+    elif action == 'update':
+        uid = body.get('id')
+        if not uid: return {'ok': False, 'error': 'Missing ID'}
+        doc_ref = users_ref.document(uid)
+        update_data = {
+            'nombre': body.get('nombre'),
+            'email': body.get('email', '').strip().lower(),
+            'role': body.get('role')
+        }
+        if body.get('password'):
+            update_data['password'] = hash_pw(body['password'])
+        doc_ref.update({k: v for k, v in update_data.items() if v is not None})
+        
+    elif action == 'delete':
+        uid = body.get('id')
+        if not uid: return {'ok': False, 'error': 'Missing ID'}
+        users_ref.document(uid).delete()
+        
+    return {'ok': True}
 
 RECOMMENDED_MODELS = {
     'google': ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash'],
@@ -301,8 +412,16 @@ async def legacy_claude(body: dict = Body(...)):
 
 @app.get("/")
 async def serve_index():
-    return FileResponse('index.html')
+    return FileResponse('public/index.html')
 
-# Mount static files at root
-# This handles style.css, script.js, etc.
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
+# Mount static files
+app.mount("/public", StaticFiles(directory="public"), name="public")
+
+# Helper to serve from root (script.js, style.css, etc.)
+@app.get("/{file_path:path}")
+async def serve_static(file_path: str):
+    full_path = os.path.join("public", file_path)
+    if os.path.isfile(full_path):
+        return FileResponse(full_path)
+    # Default to index.html for frontend routing
+    return FileResponse("public/index.html")
