@@ -112,31 +112,37 @@ RECOMMENDED_MODELS = {
 def try_google(cfg, model_name, contents, models_to_try):
     key = cfg.get('gemini_key', '')
     if not key: return None, "Key missing"
-    client = genai.Client(api_key=key, http_options={'api_version': 'v1'})
     
     last_err = ""
-    # Try recommended
-    for m in models_to_try:
-        if not m: continue
+    # Try both stable (v1) and experimental (v1beta) channels
+    for version in ['v1', 'v1beta']:
+        client = genai.Client(api_key=key, http_options={'api_version': version})
+        
+        # Try recommended models in this version
+        for m in models_to_try:
+            if not m: continue
+            try:
+                res = client.models.generate_content(model=m, contents=contents)
+                return {'text': res.text, 'model': f"{m} ({version})", 'provider': 'Google'}, None
+            except Exception as e:
+                last_err = str(e)
+                # If it's something that's NOT a model-not-found, it might be auth/quota, so return it
+                if not any(x in last_err.lower() for x in ['404', 'not found']):
+                    # If it's a 429 or other, we might still want to try discovery or other version
+                    pass
+        
+        # If no models worked in this version, try discovery in this version
         try:
-            res = client.models.generate_content(model=m, contents=contents)
-            return {'text': res.text, 'model': m, 'provider': 'Google'}, None
-        except Exception as e:
-            last_err = str(e)
-            if not any(x in last_err.lower() for x in ['404', 'not found', '429', 'quota', 'limit']):
-                return None, last_err
-                
-    # Discovery phase
-    try:
-        for m in client.models.list():
-            methods = getattr(m, 'supported_generation_methods', [])
-            if 'generateContent' in methods and m.name not in models_to_try:
-                try:
-                    res = client.models.generate_content(model=m.name, contents=contents)
-                    return {'text': res.text, 'model': m.name, 'provider': 'Google (Discovered)'}, None
-                except: continue
-    except: pass
-    return None, last_err
+            for m in client.models.list():
+                methods = getattr(m, 'supported_generation_methods', [])
+                if 'generateContent' in methods:
+                    try:
+                        res = client.models.generate_content(model=m.name, contents=contents)
+                        return {'text': res.text, 'model': f"{m.name} ({version})", 'provider': 'Google (Discovered)'}, None
+                    except: continue
+        except: pass
+        
+    return None, f"Gemini ({version}): {last_err}"
 
 def try_openai(cfg, model_name, messages, provider='openai'):
     key = cfg.get('openai_key', '')
