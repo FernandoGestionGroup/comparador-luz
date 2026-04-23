@@ -172,7 +172,93 @@ async def manage_usuarios(body: dict = Body(...)):
 
 @app.post("/api/extract")
 async def extract_invoice(body: dict = Body(...)):
-    return JSONResponse(status_code=200, content={"text": "{}", "provider": "Lazy Mode"})
+    db = get_db()
+    if not db: return JSONResponse(status_code=500, content={"error": "Database not initialized"})
+    
+    # Load config
+    d = db.collection('config').document('global').get()
+    cfg = d.to_dict() if d.exists else {}
+    
+    provider = cfg.get("provider", "anthropic")
+    messages = body.get("messages", [])
+    
+    try:
+        if provider == "anthropic":
+            import anthropic
+            client = anthropic.Anthropic(api_key=cfg.get("api_key"))
+            # Convert messages if necessary (Anthropic expects specific format)
+            # For simplicity, we assume the frontend sends the correct format
+            response = client.messages.create(
+                model=cfg.get("model") or "claude-3-5-sonnet-latest",
+                max_tokens=4096,
+                messages=messages
+            )
+            text = response.content[0].text
+            
+        elif provider == "google":
+            from google import genai
+            from google.genai import types
+            client = genai.Client(api_key=cfg.get("gemini_key"))
+            # The frontend sends a complex message structure for Anthropic. 
+            # We need to adapt it for Gemini.
+            # Usually: messages[0]['content'] is a list of parts.
+            prompt = ""
+            contents = []
+            for m in messages:
+                role = "user" if m['role'] == "user" else "model"
+                parts = []
+                for c in m['content']:
+                    if c['type'] == 'text':
+                        parts.append(types.Part.from_text(text=c['text']))
+                    elif c['type'] == 'image' or c['type'] == 'document':
+                        # Adapt base64
+                        data = c['source']['data']
+                        mtype = c['source']['media_type']
+                        parts.append(types.Part.from_bytes(data=data, mime_type=mtype))
+                contents.append(types.Content(role=role, parts=parts))
+            
+            response = client.models.generate_content(
+                model=cfg.get("model") or "gemini-2.0-flash",
+                contents=contents
+            )
+            text = response.text
+
+        elif provider in ["openai", "groq"]:
+            from openai import OpenAI
+            base_url = cfg.get("openai_url") or "https://api.openai.com/v1"
+            client = OpenAI(api_key=cfg.get("openai_key"), base_url=base_url)
+            
+            # OpenAI message format adaptation
+            oa_messages = []
+            for m in messages:
+                content = []
+                for c in m['content']:
+                    if c['type'] == 'text':
+                        content.append({"type": "text", "text": c['text']})
+                    elif c['type'] == 'image':
+                        # OpenAI expects image_url
+                        data = c['source']['data']
+                        mtype = c['source']['media_type']
+                        content.append({
+                            "type": "image_url", 
+                            "image_url": {"url": f"data:{mtype};base64,{data}"}
+                        })
+                    # Note: Legacy OpenAI doesn't support PDF directly via Chat API easily without Assistants
+                oa_messages.append({"role": m['role'], "content": content})
+            
+            response = client.chat.completions.create(
+                model=cfg.get("model") or ("gpt-4o" if provider == "openai" else "llama-3.3-70b-versatile"),
+                messages=oa_messages,
+                max_tokens=4096
+            )
+            text = response.choices[0].message.content
+        else:
+            return JSONResponse(status_code=400, content={"error": f"Unsupported provider: {provider}"})
+
+        return JSONResponse(status_code=200, content={"text": text, "provider": provider})
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
