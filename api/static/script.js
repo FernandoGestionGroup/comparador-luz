@@ -33,7 +33,7 @@ const I18N = {
     "Admin": "Admin", "Comercial": "Agent", "Administración": "Administration",
     "Cargando...": "Loading...", "Selecciona una oferta": "Select an offer", "Credenciales incorrectas": "Invalid credentials",
     
-    // PDF SPECIFIC
+    "Factura": "Invoice", "Revisión": "Review", "Comparativa": "Comparison", "Ofertas": "Offers", "Ajustes": "Settings", "Comisiones": "Commissions",
     "ESTUDIO COMPARATIVO ENERGÉTICO": "COMPARATIVE ENERGY STUDY", "Preparado el": "Prepared on", "Válido": "Valid for", "días": "days",
     "OFERTA": "OFFER", "TIPO": "TYPE", "FACTURACIÓN ACTUAL": "CURRENT BILLING", "NUEVA FACTURACIÓN": "NEW BILLING",
     "T. FIJO — POTENCIA": "FIXED TERM — POWER", "T. VARIABLE — ENERGÍA": "VARIABLE TERM — ENERGY", "OTROS CONCEPTOS": "OTHER CONCEPTS", "IMPUESTOS Y OTROS": "TAXES AND OTHERS",
@@ -80,7 +80,7 @@ const I18N = {
     "Admin": "Admin", "Comercial": "Comercial", "Administración": "Administració",
     "Cargando...": "Carregant...", "Selecciona una oferta": "Selecciona una oferta", "Credenciales incorrectas": "Credencials incorrectes",
     
-    // PDF SPECIFIC
+    "Factura": "Factura", "Revisión": "Revisió", "Comparativa": "Comparativa", "Ofertas": "Ofertes", "Ajustes": "Ajustos", "Comisiones": "Comissions",
     "ESTUDIO COMPARATIVO ENERGÉTICO": "ESTUDI COMPARATIU ENERGÈTIC", "Preparado el": "Preparat el", "Válido": "Vàlid per", "días": "dies",
     "OFERTA": "OFERTA", "TIPO": "TIPUS", "FACTURACIÓN ACTUAL": "FACTURACIÓ ACTUAL", "NUEVA FACTURACIÓN": "NOVA FACTURACIÓ",
     "T. FIJO — POTENCIA": "T. FIX — POTÈNCIA", "T. VARIABLE — ENERGÍA": "T. VARIABLE — ENERGIA", "OTROS CONCEPTOS": "ALTRES CONCEPTES", "IMPUESTOS I ALTRES": "IMPOSTOS I ALTRES",
@@ -167,17 +167,16 @@ async function initApp(){
   const isAdmin = ST.user.role === 'admin';
   if($('tab-ofr')) $('tab-ofr').style.display = isAdmin ? '' : 'none';
   if($('tab-com')) $('tab-com').style.display = isAdmin ? '' : 'none';
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin ? '' : 'none');
   await Promise.all([loadConfig(), loadOfertas(), loadUsuarios(), loadComisiones()]);
   $('cfg_provider').value = ST.config.provider || 'anthropic';
   $('cfg_model').value = ST.config.model || '';
   $('cfg_openaiurl').value = ST.config.openai_url || 'https://api.openai.com/v1';
   $('cfg_idioma').value = ST.config.idioma||'es';
   uiTogIA();
-  $('cfg-ia').style.display = isAdmin ? '' : 'none';
-  $('cfg-users-addbar').style.display = isAdmin ? '' : 'none';
   $('g_asesor').value = localStorage.getItem('el_asesor')||'';
   $('g_fecha').value = new Date().toISOString().split('T')[0];
-  buildTbls(); renderUsersTable(); go('fac'); applyLang();
+  buildTbls(); renderUsersTable(); go('fac'); applyLang(document.body);
 }
 
 function uiTogIA(){
@@ -542,7 +541,10 @@ function renderCmp(){
   
   $('rankDiv').innerHTML = res.map(r => `
     <div class="lux-item" onclick="selOfr('${r.id}')" style="cursor:pointer">
-      <div class="lux-item-name">${r.nombre}</div>
+      <div>
+        <div class="lux-item-name">${r.nombre}</div>
+        ${ST.user?.role==='admin' ? `<div style="font-size:11px;color:var(--slate-400);margin-top:2px;">Comisión: <span style="font-weight:700;color:var(--primary)">${r.comision.toFixed(2)} €</span></div>` : ''}
+      </div>
       <div class="lux-item-val">${r.total.toFixed(2)} €</div>
     </div>
   `).join('');
@@ -602,6 +604,7 @@ function selOfr(id){
       <div style="font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;color:var(--slate-900);margin-bottom:8px">${r.nombre}</div>
       <div style="font-family:'Outfit',sans-serif;font-size:32px;font-weight:800;color:var(--primary)">${r.total.toFixed(2)} €</div>
       <div style="font-size:12px;color:var(--slate-400);margin-top:12px;margin-bottom:32px">Factura estimada mensual</div>
+      ${ST.user?.role==='admin' ? `<div style="margin-bottom:20px;padding:12px;background:var(--slate-100);border-radius:12px;display:inline-block;font-size:13px;font-weight:600;color:var(--slate-700)">Comisión Calculada: <span style="color:var(--primary);font-size:15px;font-weight:800">${r.comision.toFixed(2)} €</span></div>` : ''}
       <button class="btn-action primary" onclick="genPDF()" style="width:100%;justify-content:center">
         📄 Generar PDF para comercial
       </button>
@@ -700,15 +703,143 @@ function genPDF(){
 function renderOfrList(){ 
   $('ofrList').innerHTML = ST.ofertas.map(o => `
     <div class="lux-item">
-      <div class="lux-item-name">${o.nombre}</div>
-      <button class="btn-trash-circle" onclick="delOfr('${o.id}')">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
-      </button>
+      <div class="lux-item-name">${o.nombre} <span style="font-weight:400;color:var(--slate-400);font-size:12px;margin-left:8px">${o.comercializadora} - ${o.tarifa}</span></div>
+      <div style="display:flex;gap:4px">
+        <button class="btn-action secondary" onclick="editOfr('${o.id}')" style="height:34px;padding:0 12px;border-radius:17px;font-size:11px">Editar</button>
+        <button class="btn-trash-circle" onclick="delOfr('${o.id}')">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+        </button>
+      </div>
     </div>
   `).join(''); 
 }
 async function saveOfertasToServer(){ await fetch('/api/ofertas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.ofertas)}); }
 function delOfr(id){ if(confirm('Eliminar?')){ ST.ofertas=ST.ofertas.filter(x=>x.id!==id); saveOfertasToServer(); renderOfrList(); } }
+
+function newOfr(){
+  ST.editOfrId = null;
+  $('ofrEditorTitle').innerText = 'Nueva Oferta';
+  const flds = ['eo_nombre','eo_comercializadora','eo_permanencia','eo_dto_energia','eo_dto_potencia','eo_compensacion',
+                'eo_pp_p1','eo_pp_p2','eo_pp_p3','eo_pp_p4','eo_pp_p5','eo_pp_p6',
+                'eo_ep_p1','eo_ep_p2','eo_ep_p3','eo_ep_p4','eo_ep_p5','eo_ep_p6',
+                'eo_d_p1','eo_d_p2','eo_d_p3','eo_d_p4','eo_d_p5','eo_d_p6','eo_pot_min','eo_pot_max'];
+  flds.forEach(id => { $(id).value = ''; });
+  $('eo_tarifa').value = 'todas';
+  $('eo_tipo').value = 'fijo';
+  $('eo_has_dto_p').checked = false;
+  $('dto_p_row').style.display = 'none';
+  $('ofrList').parentElement.style.display = 'none';
+  $('ofrEditor').style.display = 'block';
+}
+
+function editOfr(id){
+  const o = ST.ofertas.find(x => x.id === id); if(!o) return;
+  ST.editOfrId = id;
+  $('ofrEditorTitle').innerText = 'Editar Oferta';
+  $('eo_nombre').value = o.nombre || '';
+  $('eo_comercializadora').value = o.comercializadora || '';
+  $('eo_tarifa').value = o.tarifa || 'todas';
+  $('eo_tipo').value = o.tipo || 'fijo';
+  $('eo_permanencia').value = o.permanencia || '';
+  $('eo_dto_energia').value = o.dto_energia_global || '';
+  $('eo_dto_potencia').value = o.dto_potencia || '';
+  $('eo_compensacion').value = o.compensacion || '';
+  for(let i=1;i<=6;i++) {
+    $('eo_pp_p'+i).value = o['pp_p'+i] || '';
+    $('eo_ep_p'+i).value = o['ep_p'+i] || '';
+    $('eo_d_p'+i).value = o['dto_e_p'+i] || '';
+  }
+  $('eo_pot_min').value = o.pot_min || '';
+  $('eo_pot_max').value = o.pot_max || '';
+  
+  $('eo_has_dto_p').checked = !!o.dto_energia_por_periodo;
+  $('dto_p_row').style.display = o.dto_energia_por_periodo ? 'grid' : 'none';
+  
+  $('ofrList').parentElement.style.display = 'none';
+  $('ofrEditor').style.display = 'block';
+}
+
+function closeOfr(){
+  $('ofrEditor').style.display = 'none';
+  $('ofrList').parentElement.style.display = 'flex';
+}
+
+function saveOfr(){
+  const isNew = !ST.editOfrId;
+  const o = isNew ? { id: 'ofr_' + Date.now().toString(36) + Math.random().toString(36).substr(2) } : ST.ofertas.find(x => x.id === ST.editOfrId);
+  o.nombre = $('eo_nombre').value;
+  o.comercializadora = $('eo_comercializadora').value;
+  o.tarifa = $('eo_tarifa').value;
+  o.tipo = $('eo_tipo').value;
+  o.permanencia = $('eo_permanencia').value;
+  o.dto_energia_global = n($('eo_dto_energia').value);
+  o.dto_potencia = n($('eo_dto_potencia').value);
+  o.compensacion = n($('eo_compensacion').value);
+  o.dto_energia_por_periodo = $('eo_has_dto_p').checked;
+  for(let i=1;i<=6;i++){
+    o['pp_p'+i] = n($('eo_pp_p'+i).value);
+    o['ep_p'+i] = n($('eo_ep_p'+i).value);
+    o['dto_e_p'+i] = n($('eo_d_p'+i).value);
+  }
+  o.pot_min = n($('eo_pot_min').value);
+  o.pot_max = n($('eo_pot_max').value);
+  
+  if(isNew) ST.ofertas.push(o);
+  saveOfertasToServer();
+  renderOfrList();
+  closeOfr();
+  sb('Oferta guardada correctamente', 'ok');
+}
+
+function addComCo(){
+  const nm = $('newComName').value.trim();
+  if(!nm) return alert("Introduce un nombre de comercializadora");
+  if(ST.comisiones.find(c=>c.comercializadora.toLowerCase()===nm.toLowerCase())) return alert("Ya existe");
+  ST.comisiones.push({comercializadora: nm, tramos: []});
+  $('newComName').value = '';
+  fetch('/api/comisiones',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.comisiones)});
+  renderComList();
+}
+
+function switchCfgTab(tabId){
+  ['int','ia','usr','dat'].forEach(id => {
+    const btn = $('cfgTab-'+id);
+    const mod = $('cfgMod-'+id);
+    if(btn) btn.className = btn.className.replace(' active','');
+    if(mod) mod.style.display = 'none';
+  });
+  if($('cfgTab-'+tabId)) $('cfgTab-'+tabId).className += ' active';
+  if($('cfgMod-'+tabId)) $('cfgMod-'+tabId).style.display = 'block';
+}
+
+function exportData(){
+  const data = JSON.stringify({ ofertas: ST.ofertas, comisiones: ST.comisiones }, null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "gestiongroup_backup_" + new Date().toISOString().split('T')[0] + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(files){
+  if(!files.length) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if(parsed.ofertas && Array.isArray(parsed.ofertas)) ST.ofertas = parsed.ofertas;
+      if(parsed.comisiones && Array.isArray(parsed.comisiones)) ST.comisiones = parsed.comisiones;
+      await saveOfertasToServer();
+      await saveComisionesToServer();
+      renderOfrList();
+      renderComList();
+      sb('Datos importados correctamente', 'ok');
+    } catch(err) { alert('Error al importar el archivo: ' + err.message); }
+  };
+  reader.readAsText(files[0]);
+}
 
 function renderUsersTable(){ 
   $('cfg-users-content').innerHTML = ST.usuarios.map(u => `

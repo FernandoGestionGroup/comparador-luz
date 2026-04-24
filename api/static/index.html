@@ -378,13 +378,92 @@
 
         <!-- ═══ PAGE: OFERTAS ═══ -->
         <section class="page" id="p-ofr">
-            <div class="card"><div class="card-title">Base de Datos de Ofertas</div><div id="ofrList"></div></div>
+            <div class="g2">
+                <div class="card" style="display:flex;flex-direction:column;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+                        <div class="card-title" style="margin-bottom:0;">Base de Datos de Ofertas</div>
+                        <button class="btn-action primary" onclick="newOfr()" style="height:36px;font-size:12px;padding:0 16px;">+ Nueva Oferta</button>
+                    </div>
+                    <div id="ofrList" style="flex:1;overflow-y:auto;max-height:500px;"></div>
+                </div>
+                
+                <div class="card" id="ofrEditor" style="display:none;">
+                    <div class="card-title" id="ofrEditorTitle">Editar Oferta</div>
+                    
+                    <div class="g2" style="margin-bottom:12px">
+                        <div class="fld"><label class="fld-label">Nombre de la Oferta</label><input type="text" id="eo_nombre" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Comercializadora</label><input type="text" id="eo_comercializadora" class="form-input"></div>
+                    </div>
+                    <div class="g3" style="margin-bottom:12px">
+                        <div class="fld"><label class="fld-label">Tarifa</label><select id="eo_tarifa" class="form-input"><option value="todas">Todas</option><option value="2.0TD">2.0TD</option><option value="3.0TD">3.0TD</option><option value="6.1TD">6.1TD</option></select></div>
+                        <div class="fld"><label class="fld-label">Tipo Precio</label><select id="eo_tipo" class="form-input"><option value="fijo">Fijo</option><option value="indexado">Indexado</option></select></div>
+                        <div class="fld"><label class="fld-label">Permanencia</label><input type="text" id="eo_permanencia" class="form-input" placeholder="Ej: Sin permanencia"></div>
+                    </div>
+                    <div class="g2" style="margin-bottom:12px">
+                        <div class="fld"><label class="fld-label">Dto. Energía Global (%)</label><input type="number" id="eo_dto_energia" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Dto. Potencia (%)</label><input type="number" id="eo_dto_potencia" class="form-input"></div>
+                    </div>
+                    <div class="fld" style="margin-bottom:16px"><label class="fld-label">Compensación Autoconsumo (€/kWh)</label><input type="number" id="eo_compensacion" class="form-input" step="0.001"></div>
+                    
+                    <div style="font-size:11px;font-weight:800;color:var(--slate-400);text-transform:uppercase;margin-bottom:8px">Precios de Potencia (€/kW·día)</div>
+                    <div class="g3" style="margin-bottom:16px">
+                        <div class="fld"><label class="fld-label">P1</label><input type="number" id="eo_pp_p1" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P2</label><input type="number" id="eo_pp_p2" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P3</label><input type="number" id="eo_pp_p3" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P4</label><input type="number" id="eo_pp_p4" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P5</label><input type="number" id="eo_pp_p5" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P6</label><input type="number" id="eo_pp_p6" class="form-input" step="0.000001"></div>
+                    </div>
+
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                        <div style="font-size:11px;font-weight:800;color:var(--slate-400);text-transform:uppercase;">Precios de Energía (€/kWh)</div>
+                        <label style="font-size:10px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="eo_has_dto_p" onchange="$('dto_p_row').style.display=this.checked?'grid':'none'"> Dto. por periodo</label>
+                    </div>
+                    <div class="g3" style="margin-bottom:8px">
+                        <div class="fld"><label class="fld-label">P1</label><input type="number" id="eo_ep_p1" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P2</label><input type="number" id="eo_ep_p2" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P3</label><input type="number" id="eo_ep_p3" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P4</label><input type="number" id="eo_ep_p4" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P5</label><input type="number" id="eo_ep_p5" class="form-input" step="0.000001"></div>
+                        <div class="fld"><label class="fld-label">P6</label><input type="number" id="eo_ep_p6" class="form-input" step="0.000001"></div>
+                    </div>
+                    
+                    <div class="g3" id="dto_p_row" style="margin-bottom:16px;display:none;background:#f0fafb;padding:8px;border-radius:8px">
+                        <div class="fld"><label class="fld-label">Dto P1 %</label><input type="number" id="eo_d_p1" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Dto P2 %</label><input type="number" id="eo_d_p2" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Dto P3 %</label><input type="number" id="eo_d_p3" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Dto P4 %</label><input type="number" id="eo_d_p4" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Dto P5 %</label><input type="number" id="eo_d_p5" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Dto P6 %</label><input type="number" id="eo_d_p6" class="form-input"></div>
+                    </div>
+                    
+                    <div style="font-size:11px;font-weight:800;color:var(--slate-400);text-transform:uppercase;margin-bottom:8px">Filtros de Aplicación</div>
+                    <div class="g2" style="margin-bottom:12px">
+                        <div class="fld"><label class="fld-label">Pot. Mínima (kW)</label><input type="number" id="eo_pot_min" class="form-input"></div>
+                        <div class="fld"><label class="fld-label">Pot. Máxima (kW)</label><input type="number" id="eo_pot_max" class="form-input"></div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn-action secondary" onclick="closeOfr()">Cancelar</button>
+                        <button class="btn-action primary" onclick="saveOfr()">Guardar Oferta</button>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- ═══ PAGE: COMISIONES ═══ -->
         <section class="page" id="p-com">
             <div class="g2">
-                <div class="card"><div class="card-title">Comercializadoras</div><div id="comList"></div></div>
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <div class="card-title" style="margin-bottom:0;">Comercializadoras</div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:16px;">
+                        <input type="text" id="newComName" class="form-input" placeholder="Ej: Endesa">
+                        <button class="btn-action primary" onclick="addComCo()" style="height:44px;padding:0 16px">+</button>
+                    </div>
+                    <div id="comList"></div>
+                </div>
                 <div>
                     <div id="comEditorEmpty" class="card" style="text-align:center;color:var(--slate-400);font-size:13px;padding:48px">Selecciona una comercializadora para configurar sus comisiones.</div>
                     <div class="card" id="comEditor" style="display:none">
@@ -402,38 +481,74 @@
 
         <!-- ═══ PAGE: AJUSTES ═══ -->
         <section class="page" id="p-cfg">
-            <div class="card">
-                <div class="card-title">Configuración IA</div>
-                <div class="g2" style="margin-bottom:20px">
-                    <div class="fld"><label class="fld-label">Proveedor</label>
-                        <select id="cfg_provider" class="form-input" onchange="uiTogIA()">
-                            <option value="anthropic">Anthropic (Claude)</option>
-                            <option value="google">Google (Gemini)</option>
-                            <option value="openai">OpenAI (GPT-4o)</option>
-                        </select>
-                    </div>
-                    <div class="fld"><label class="fld-label">Idioma</label>
-                        <select id="cfg_idioma" class="form-input">
-                            <option value="es">Español</option>
-                            <option value="en">English</option>
-                            <option value="ca">Català</option>
-                        </select>
+            <div style="display:flex;gap:32px;">
+                <!-- Sidebar Ajustes -->
+                <div style="width:200px;flex-shrink:0;">
+                    <div style="font-weight:800;font-size:12px;color:var(--slate-400);text-transform:uppercase;margin-bottom:12px;letter-spacing:1px">Módulos</div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                        <button class="com-item active" id="cfgTab-int" onclick="switchCfgTab('int')">Interfaz / General</button>
+                        <button class="com-item admin-only" id="cfgTab-ia" onclick="switchCfgTab('ia')">Inteligencia Artificial</button>
+                        <button class="com-item admin-only" id="cfgTab-usr" onclick="switchCfgTab('usr')">Usuarios</button>
+                        <button class="com-item admin-only" id="cfgTab-dat" onclick="switchCfgTab('dat')">Datos / Backup</button>
                     </div>
                 </div>
-                <div id="cfg-ia" style="border-top:1px solid var(--slate-100);padding-top:20px">
-                    <div id="ia_anthropic" class="ia-fields"><div class="fld"><label class="fld-label">API Key Anthropic</label><input type="password" id="cfg_apikey" class="form-input" placeholder="sk-ant-..."></div></div>
-                    <div id="ia_google" class="ia-fields" style="display:none"><div class="fld"><label class="fld-label">API Key Google</label><input type="password" id="cfg_geminikey" class="form-input"></div></div>
-                    <div id="ia_openai" class="ia-fields" style="display:none"><div class="fld"><label class="fld-label">API Key OpenAI</label><input type="password" id="cfg_openaikey" class="form-input"></div></div>
-                    <div style="display:none"><input id="cfg_model"><input id="cfg_openaiurl"></div>
+                
+                <!-- Content Ajustes -->
+                <div style="flex:1;">
+                    <!-- INTERFAZ -->
+                    <div id="cfgMod-int" class="card">
+                        <div class="card-title">Interfaz y General</div>
+                        <div class="fld" style="max-width:300px"><label class="fld-label">Idioma</label>
+                            <select id="cfg_idioma" class="form-input">
+                                <option value="es">Español</option>
+                                <option value="en">English</option>
+                                <option value="ca">Català</option>
+                            </select>
+                        </div>
+                        <div class="btn-group" style="justify-content:flex-start;margin-top:20px">
+                            <button class="btn-action primary" onclick="saveConfig()">Guardar Configuración</button>
+                        </div>
+                    </div>
+                    
+                    <!-- IA -->
+                    <div id="cfgMod-ia" class="card" style="display:none;">
+                        <div class="card-title">Configuración IA</div>
+                        <div class="fld" style="margin-bottom:20px"><label class="fld-label">Proveedor</label>
+                            <select id="cfg_provider" class="form-input" onchange="uiTogIA()">
+                                <option value="anthropic">Anthropic (Claude)</option>
+                                <option value="google">Google (Gemini)</option>
+                                <option value="openai">OpenAI (GPT-4o)</option>
+                            </select>
+                        </div>
+                        <div id="cfg-ia" style="border-top:1px solid var(--slate-100);padding-top:20px">
+                            <div id="ia_anthropic" class="ia-fields"><div class="fld"><label class="fld-label">API Key Anthropic</label><input type="password" id="cfg_apikey" class="form-input" placeholder="sk-ant-..."></div></div>
+                            <div id="ia_google" class="ia-fields" style="display:none"><div class="fld"><label class="fld-label">API Key Google</label><input type="password" id="cfg_geminikey" class="form-input"></div></div>
+                            <div id="ia_openai" class="ia-fields" style="display:none"><div class="fld"><label class="fld-label">API Key OpenAI</label><input type="password" id="cfg_openaikey" class="form-input"></div></div>
+                            <div style="display:none"><input id="cfg_model"><input id="cfg_openaiurl"></div>
+                        </div>
+                        <div class="btn-group" style="justify-content:flex-start;margin-top:20px">
+                            <button class="btn-action primary" onclick="saveConfig()">Guardar Configuración</button>
+                        </div>
+                    </div>
+                    
+                    <!-- USUARIOS -->
+                    <div id="cfgMod-usr" class="card" style="display:none;">
+                        <div class="card-title">Gestión de Usuarios</div>
+                        <div id="cfg-users-addbar"></div>
+                        <div id="cfg-users-content"></div>
+                    </div>
+                    
+                    <!-- DATOS -->
+                    <div id="cfgMod-dat" class="card" style="display:none;">
+                        <div class="card-title">Datos / Backup</div>
+                        <div style="font-size:13px;color:var(--slate-600);margin-bottom:16px;">Exporta o importa las bases de datos locales (Ofertas y Comisiones) como archivos JSON.</div>
+                        <div class="btn-group" style="justify-content:flex-start">
+                            <button class="btn-action secondary" onclick="exportData()">Descargar Backup JSON</button>
+                            <button class="btn-action secondary" onclick="document.getElementById('importDataFile').click()">Importar JSON</button>
+                            <input type="file" id="importDataFile" style="display:none" accept=".json" onchange="importData(this.files)">
+                        </div>
+                    </div>
                 </div>
-                <div class="btn-group" style="justify-content:flex-start;margin-top:20px">
-                    <button class="btn-action primary" onclick="saveConfig()">Guardar Configuración</button>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-title">Gestión de Usuarios</div>
-                <div id="cfg-users-addbar"></div>
-                <div id="cfg-users-content"></div>
             </div>
         </section>
 
