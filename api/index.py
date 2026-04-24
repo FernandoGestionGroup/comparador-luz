@@ -22,9 +22,7 @@ app.add_middleware(
 # --- PATH RESOLUTION (Vercel-Safe) ---
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
-# Primary: public/ (canonical frontend source). Fallback: api/static/
-PUBLIC_DIR = PROJECT_ROOT / "public"
-STATIC_DIR = PUBLIC_DIR if PUBLIC_DIR.is_dir() else CURRENT_DIR / "static"
+STATIC_DIR = PROJECT_ROOT / "public"
 
 # --- LAZY DATABASE & MODELS ---
 _STORAGE = {"db": None}
