@@ -83,7 +83,7 @@
             display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
             box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
         }
-        .top-logo { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: var(--slate-900); }
+        .top-logo { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: var(--slate-900); display: flex; align-items: center; gap: 8px; }
         .top-logo span { color: var(--primary); }
 
         .nav-tabs { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 12px; }
@@ -93,8 +93,9 @@
         }
         .nav-tab.active { background: var(--white); color: var(--primary); box-shadow: var(--shadow-subtle); }
 
-        .user-info { display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 600; }
-        .logout-btn { color: var(--slate-400); background: none; border: none; cursor: pointer; font-weight: 600; }
+        .user-info { display: flex; align-items: center; gap: 20px; font-size: 13px; font-weight: 600; }
+        .user-role-badge { font-size: 10px; color: var(--slate-400); background: var(--slate-100); padding: 2px 8px; border-radius: 6px; text-transform: uppercase; }
+        .logout-btn { color: var(--slate-400); background: none; border: none; cursor: pointer; font-weight: 600; font-size: 12px; }
         .logout-btn:hover { color: var(--error); }
 
         /* --- CONTENT --- */
@@ -102,39 +103,52 @@
         .page { display: none; max-width: 1200px; margin: 0 auto; }
         .page.active { display: block; animation: fadeIn 0.4s ease; }
 
-        .card { background: var(--white); border-radius: 20px; padding: 40px; border: 1px solid var(--slate-100); box-shadow: var(--shadow-subtle); margin-bottom: 32px; }
-        .card-header { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
-        .card-header::before { content: ''; width: 4px; height: 20px; background: var(--primary); border-radius: 2px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+        .card { background: var(--white); border-radius: 20px; padding:35px; border: 1px solid var(--slate-100); box-shadow: var(--shadow-subtle); margin-bottom: 32px; }
+        .card-header { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .card-header::before { content: ''; width: 4px; height: 18px; background: var(--primary); border-radius: 2px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .grid-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
 
         .field-group { margin-bottom: 0; }
-        .field-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--slate-400); margin-bottom: 8px; display: block; letter-spacing: 0.5px; }
+        .field-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--slate-400); margin-bottom: 6px; display: block; letter-spacing: 0.5px; }
 
         .upzone {
-            border: 2px dashed var(--slate-100); border-radius: 16px; padding: 60px; text-align: center;
-            background: #fcfdfe; transition: all 0.3s; cursor: pointer;
+            border: 2px dashed var(--slate-100); border-radius: 16px; padding: 50px; text-align: center;
+            background: #fcfdfe; transition: all 0.3s; cursor: pointer; position: relative;
         }
         .upzone:hover { border-color: var(--primary); background: #f0fdfa; }
-        .upzone-icon { font-size: 40px; margin-bottom: 16px; }
+        .upzone-icon { font-size: 32px; margin-bottom: 12px; }
 
-        /* TABLE */
+        /* DATA UI */
         .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--slate-400); padding: 12px 16px; border-bottom: 2px solid var(--slate-100); }
-        .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--slate-100); }
+        .data-table th { text-align: left; font-size: 10px; text-transform: uppercase; color: var(--slate-400); padding: 12px; border-bottom: 2px solid var(--slate-100); }
+        .data-table td { padding: 10px; border-bottom: 1px solid var(--slate-100); }
+        
+        .tag-pill { padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; background: #f1f5f9; color: var(--slate-400); }
+        .tag-teal { background: rgba(44, 181, 173, 0.1); color: var(--primary); }
 
         .btn-trash {
             background: #fff1f2; color: #e11d48; border: 1px solid #fecaca;
-            width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: all 0.2s;
         }
         .btn-trash:hover { background: #e11d48; color: white; border-color: #e11d48; transform: scale(1.1); }
+
+        #sb { position: fixed; bottom: 30px; right: 30px; padding: 12px 24px; border-radius: 10px; color: white; font-weight: 600; display: none; z-index: 100001; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .sb-ok { background: #10b981; } .sb-err { background: #ef4444; } .sb-load { background: var(--slate-900); }
     </style>
 </head>
 <body>
 
-    <!-- ══ LOGIN SECTION ══ -->
+    <!-- ══ SNACKBAR ══ -->
+    <div id="sb"></div>
+
+    <!-- ══ LOGIN SCREEN ══ -->
     <div class="login-screen" id="loginScreen">
         <div class="login-card">
             <div class="login-brand">ESTUDIO <span>LUZ</span></div>
@@ -142,16 +156,15 @@
             
             <div class="form-group">
                 <label>Correo Electrónico</label>
-                <input type="email" id="l_email" class="form-input" placeholder="usuario@gestiongroup.es" autocomplete="username">
+                <input type="email" id="l_email" class="form-input" placeholder="usuario@gestiongroup.es">
             </div>
             
             <div class="form-group">
                 <label>Contraseña</label>
-                <input type="password" id="l_pass" class="form-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
+                <input type="password" id="l_pass" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
             </div>
             
             <div id="l_err" class="login-err">Credenciales incorrectas</div>
-            
             <button class="btn-login" onclick="doLogin()">Acceder a la plataforma</button>
         </div>
     </div>
@@ -170,7 +183,10 @@
             </div>
 
             <div class="user-info">
-                <span id="ui_nombre">Admin</span>
+                <div>
+                    <span id="ui_nombre">Admin</span>
+                    <span id="ui_role" class="user-role-badge">Admin</span>
+                </div>
                 <button class="logout-btn" onclick="doLogout()">Cerrar Sesión</button>
             </div>
         </div>
@@ -179,14 +195,32 @@
             <!-- PAGE: FACTURA -->
             <div class="page active" id="p-fac">
                 <div class="card">
+                    <div class="card-header">Asesoría e Identificación</div>
+                    <div class="grid-2">
+                        <div class="field-group">
+                            <label class="field-label">Nombre del Asesor</label>
+                            <input type="text" id="g_asesor" class="form-input" placeholder="Tu nombre">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Fecha de Propuesta</label>
+                            <input type="date" id="g_fecha" class="form-input">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
                     <div class="card-header">Carga de Documentación</div>
-                    <div class="upzone" id="upzone">
+                    <div class="upzone" onclick="$('fInput').click()" id="upzone">
                         <div class="upzone-icon">📂</div>
                         <div style="font-weight: 700; margin-bottom: 4px;">Arrastra la factura o haz clic aquí</div>
                         <div style="color: var(--slate-400); font-size: 13px;">PDF, JPG o PNG soportados</div>
                         <input type="file" id="fInput" style="display:none" multiple onchange="onFiles(this.files)">
                     </div>
-                    <div id="chips" style="margin-top:20px; display:flex; gap:10px;"></div>
+                    <div id="chips" style="margin-top:20px; display:flex; flex-wrap:wrap; gap:10px;"></div>
+                    
+                    <div id="prevSec" style="display:none; margin-top:20px; text-align:center;">
+                        <button class="btn-login" id="btnEx" onclick="extract()" style="max-width:300px">✦ Extraer con IA Profesional</button>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -198,11 +232,11 @@
                         </div>
                         <div class="field-group">
                             <label class="field-label">Potencia Contratada (kW)</label>
-                            <input type="number" id="f_pot_cups" class="form-input" placeholder="Ej: 15.0">
+                            <input type="number" id="f_pot" class="form-input" placeholder="Ej: 15.0">
                         </div>
                         <div class="field-group">
                             <label class="field-label">Tarifa Detectada</label>
-                            <select id="f_tar_cups" class="form-input">
+                            <select id="f_tar" class="form-input">
                                 <option value="2.0TD">2.0TD</option>
                                 <option value="3.0TD">3.0TD</option>
                                 <option value="6.1TD">6.1TD</option>
@@ -212,15 +246,44 @@
                 </div>
             </div>
 
-            <!-- OTHER PAGES WILL BE RENDERED VIA JS -->
-            <div class="page" id="p-rev"></div>
+            <!-- PAGE: REVISION (HIDDEN ELEMENTS FOR JS COMPATIBILITY) -->
+            <div class="page" id="p-rev">
+                <div class="card">
+                    <div class="card-header">Datos del Cliente</div>
+                    <div class="grid-fields">
+                        <div class="field-group">
+                            <label class="field-label">Razón Social</label>
+                            <input type="text" id="f_cli" class="form-input">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">CUPS</label>
+                            <input type="text" id="f_cups" class="form-input">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Comercializadora</label>
+                            <input type="text" id="f_com" class="form-input">
+                        </div>
+                    </div>
+                </div>
+                <!-- HIDDEN BACKING FIELDS FOR JS -->
+                <div style="display:none">
+                    <input id="f_dir"><input id="f_cp"><input id="f_dias"><input id="f_tot">
+                    <input id="f_iva"><input id="f_iee"><input id="f_iva_act"><input id="f_iee_act">
+                    <input id="f_dto_en_act"><input id="f_rea"><input id="f_exc"><input id="f_alq">
+                    <input id="f_bon"><input id="f_ser"><input type="checkbox" id="f_tiene_autocon">
+                    <input id="f_aut_kwh"><input id="f_aut_precio"><input id="f_aut_total">
+                </div>
+            </div>
+            
             <div class="page" id="p-cmp"></div>
             <div class="page" id="p-ofr"></div>
             <div class="page" id="p-cfg"></div>
         </div>
     </div>
 
-    <script src="script.js?v=senior_v1"></script>
+    <!-- JS LIBS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="script.js?v=senior_v2"></script>
 </body>
 </html>
