@@ -163,3 +163,8 @@ body {
 .login-logo { margin-bottom: 40px; }
 .login-logo .brand { font-size: 30px; margin-bottom: 4px; }
 .login-logo .sub { letter-spacing: 2px; }
+ 
+ /* --- UTILS --- */
+ .period-dimmed { opacity: 0.35; filter: grayscale(0.8); background: #f8fafc; pointer-events: none; }
+ .period-active { background: var(--primary-soft) !important; border-left: 3px solid var(--primary) !important; }
+ .period-active td.lbl { color: var(--primary-deep); font-weight: 900; }

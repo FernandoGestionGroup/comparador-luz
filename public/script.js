@@ -304,14 +304,36 @@ function addLecL(per){
   $('lecT').appendChild(tr);
 }
 
-function updTar(){
-  const v = n($('f_pot').value); const currentTar = $('f_tar').value; let t = v<=15?'2.0TD':'3.0TD';
-  if(v > 150 && currentTar !== '3.0TD') t = '6.1TD';
-  $('f_tar').value=t;
-  if($('f_tar_cups')) $('f_tar_cups').value=t;
-  if($('tarTag')) $('tarTag').textContent=t;
-  if($('potHint')) $('potHint').style.display = t!=='2.0TD'?'block':'none';
-  if($('f_pot_cups')) $('f_pot_cups').value = v||'';
+function updTar(forceTariff){
+  const v = n($('f_pot').value); 
+  let t = forceTariff || $('f_tar').value;
+  
+  // Lógica de sugerencia si no hay forceTariff
+  if(!forceTariff) {
+    if(v > 0 && v <= 15) t = '2.0TD';
+    else if(v > 15 && v <= 150) t = '3.0TD';
+    else if(v > 150) t = '6.1TD';
+  }
+
+  $('f_tar').value = t;
+  if($('f_tar_cups')) $('f_tar_cups').value = t;
+  if($('tarTag')) $('tarTag').textContent = t;
+  if($('potHint')) $('potHint').style.display = (t !== '2.0TD') ? 'block' : 'none';
+  if($('f_pot_cups')) $('f_pot_cups').value = v || '';
+
+  // Adaptación del formulario: atenuar periodos no usados
+  const is20 = t === '2.0TD';
+  document.querySelectorAll('.pot-row, .en-row, .lec-row').forEach(row => {
+    const p = row.dataset.per;
+    const isActive = is20 ? ['P1','P2','P3'].includes(p) : true;
+    if(isActive) {
+      row.classList.remove('period-dimmed');
+      row.classList.add('period-active');
+    } else {
+      row.classList.add('period-dimmed');
+      row.classList.remove('period-active');
+    }
+  });
 }
 
 function onFiles(flist){
@@ -374,10 +396,63 @@ async function extract(){
 function fillForm(d){
   clearIeeExtras();
   const set=(id,v)=>{ const el=$(id); if(el) el.value=v||''; };
-  set('f_cli',d.cliente); set('f_cups',d.cups); set('f_com',d.comercializadora); set('f_dir',d.direccion); set('f_cp',d.cp); set('f_pot',d.potencia_kw); set('f_dias',d.dias); set('f_fi',d.fecha_inicio); set('f_tot',d.total_factura); set('f_iva',d.iva_pct); set('f_iee',d.iee_pct); set('f_iee_act',d.iee_act); set('f_iva_act',d.iva_act); set('f_dto_en_act',d.dto_energia_act_pct); set('f_rea',d.reactiva); set('f_exc',d.exceso_potencia); set('f_alq',d.alquiler_equipos); set('f_bon',d.bono_social); set('f_ser',d.servicio);
-  if(d.tiene_autoconsumo){ $('f_tiene_autocon').checked=true; $('autoconFields').style.display='block'; set('f_aut_kwh',d.autoconsumo_kwh); set('f_aut_precio',d.autoconsumo_precio_kwh); set('f_aut_total',d.autoconsumo_total); }
-  buildTbls(); // Re-populate with AI data... (simplified)
-  updTar();
+  
+  // Priorizar tarifa de la IA
+  const aiTariff = d.tarifa ? d.tarifa.toUpperCase().trim() : null;
+  
+  set('f_cli',d.cliente); set('f_cups',d.cups); set('f_com',d.comercializadora); 
+  set('f_dir',d.direccion); set('f_cp',d.cp); set('f_pot',d.potencia_kw); 
+  set('f_dias',d.dias); set('f_fi',d.fecha_inicio); set('f_tot',d.total_factura); 
+  set('f_iva',d.iva_pct); set('f_iee',d.iee_pct); set('f_iee_act',d.iee_act); 
+  set('f_iva_act',d.iva_act); set('f_dto_en_act',d.dto_energia_act_pct); 
+  set('f_rea',d.reactiva); set('f_exc',d.exceso_potencia); set('f_alq',d.alquiler_equipos); 
+  set('f_bon',d.bono_social); set('f_ser',d.servicio);
+  
+  if(d.tiene_autoconsumo){ 
+    $('f_tiene_autocon').checked=true; 
+    $('autoconFields').style.display='block'; 
+    set('f_aut_kwh',d.autoconsumo_kwh); 
+    set('f_aut_precio',d.autoconsumo_precio_kwh); 
+    set('f_aut_total',d.autoconsumo_total); 
+  }
+
+  buildTbls(); 
+
+  // Poblar tablas con datos de la IA si existen
+  if(d.potencia && d.potencia.length) {
+    $('potT').innerHTML = '';
+    d.potencia.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.className = 'pot-row';
+      tr.dataset.per = p.per;
+      tr.innerHTML = `<td class="lbl">${p.per}</td><td><input type="number" class="pk_in" value="${p.kw}"></td><td><input type="number" class="pi_in" value="${p.importe}"></td><td><button onclick="this.closest('tr').remove()">✕</button></td>`;
+      $('potT').appendChild(tr);
+    });
+  }
+  
+  if(d.energia && d.energia.length) {
+    $('enT').innerHTML = '';
+    d.energia.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.className = 'en-row';
+      tr.dataset.per = e.per;
+      tr.innerHTML = `<td class="lbl">${e.per}</td><td><input type="number" class="ek_in" value="${e.kwh}"></td><td><input type="number" class="ep_in" value="${e.precio}"></td><td><button onclick="this.closest('tr').remove()">✕</button></td>`;
+      $('enT').appendChild(tr);
+    });
+  }
+
+  if(d.lecturas_energia && d.lecturas_energia.length) {
+    $('lecT').innerHTML = '';
+    d.lecturas_energia.forEach(l => {
+      const tr = document.createElement('tr');
+      tr.className = 'lec-row';
+      tr.dataset.per = l.per;
+      tr.innerHTML = `<td class="lbl">${l.per}</td><td><input type="number" class="lk_in" value="${l.kwh}"></td><td><button onclick="this.closest('tr').remove()">✕</button></td>`;
+      $('lecT').appendChild(tr);
+    });
+  }
+
+  updTar(aiTariff);
 }
 
 let ieeExtraCount=0;

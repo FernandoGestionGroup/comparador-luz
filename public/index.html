@@ -264,7 +264,7 @@
                     <div class="card-title">Parámetros CUPS</div>
                     <div class="fld" style="margin-bottom:14px"><label class="fld-label">Consumo Anual (kWh)</label><input type="number" id="f_consumo_anual" class="form-input" placeholder="Ej: 4500"></div>
                     <div class="fld" style="margin-bottom:14px"><label class="fld-label">Potencia Contratada (kW)</label><input type="number" id="f_pot" class="form-input" placeholder="Ej: 5.5" onchange="updTar()"></div>
-                    <div class="fld"><label class="fld-label">Tarifa <span id="tarTag" style="color:var(--primary);font-weight:800"></span></label><select id="f_tar" class="form-input"><option value="2.0TD">2.0TD</option><option value="3.0TD">3.0TD</option><option value="6.1TD">6.1TD</option></select></div>
+                    <div class="fld"><label class="fld-label">Tarifa <span id="tarTag" style="color:var(--primary);font-weight:800"></span></label><select id="f_tar" class="form-input" onchange="updTar()"><option value="2.0TD">2.0TD</option><option value="3.0TD">3.0TD</option><option value="6.1TD">6.1TD</option></select></div>
                     <div id="potHint" style="display:none;margin-top:8px;font-size:11px;color:var(--slate-400)">Tarifa ≥3.0: hasta 6 periodos de potencia</div>
                 </div>
             </div>
