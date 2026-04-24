@@ -5,22 +5,27 @@ const I18N = {
     "NOMBRE DEL ASESOR": "ADVISOR NAME", "FECHA DE LA PROPUESTA": "PROPOSAL DATE", "Subir factura": "Upload invoice", "Haz clic o arrastra archivos aquí": "Click or drag files here",
     "PDF o imágenes JPG/PNG · múltiples páginas permitido": "PDF or JPG/PNG images · multiple pages allowed", "✦ Extraer con IA": "✦ Extract with AI", "Cambiar archivos": "Change files",
     "Consumo Anual del CUPS": "Annual CUPS Consumption", "CONSUMO ANUAL TOTAL (kWh)": "TOTAL ANNUAL CONSUMPTION (kWh)", "POTENCIA CONTRATADA (kW)": "CONTRACTED POWER (kW)", "TARIFA DETECTADA": "DETECTED TARIFF",
-    "Datos del cliente": "Customer data", "CLIENTE / RAZÓN SOCIAL": "CUSTOMER / COMPANY NAME", "COMERCIALIZADORA ACTUAL": "CURRENT SUPPLIER", "DIRECCIÓN": "ADDRESS", "CÓDIGO POSTAL": "POSTAL CODE", "TARIFA": "TARIFF",
-    "Parámetros de facturación": "Billing parameters", "DÍAS FACTURADOS": "BILLED DAYS", "FECHA INICIO PERÍODO": "PERIOD START DATE", "TOTAL FACTURA (€) ⚠": "INVOICE TOTAL (€) ⚠",
-    "IVA / IGIC (%)": "VAT / IGIC (%)", "IEE (%)": "IEE (%)", "IEE FACTURA ACTUAL (€)": "CURRENT INVOICE IEE (€)", "IVA FACTURA ACTUAL (€)": "CURRENT INVOICE VAT (€)", "DESCUENTO ENERGÍA ACTUAL (%)": "CURRENT ENERGY DISCOUNT (%)",
+    "Datos del cliente": "Customer data", "CLIENTE / RAZÓN SOCIAL": "CUSTOMER / COMPANY NAME", "Cliente / Razón Social": "Customer / Company Name", "CUPS": "CUPS",
+    "COMERCIALIZADORA ACTUAL": "CURRENT SUPPLIER", "Comercializadora Actual": "Current Supplier", "DIRECCIÓN": "ADDRESS", "CÓDIGO POSTAL": "POSTAL CODE", "TARIFA": "TARIFF",
+    "Parámetros de facturación": "Billing parameters", "DÍAS FACTURADOS": "BILLED DAYS", "Días facturados": "Billed days", "FECHA INICIO PERÍODO": "PERIOD START DATE", "Fecha Inicio": "Start Date", "TOTAL FACTURA (€) ⚠": "INVOICE TOTAL (€) ⚠", "Total Factura (€)": "Invoice Total (€)",
+    "IVA / IGIC (%)": "VAT / IGIC (%)", "IVA (%)": "VAT (%)", "IEE (%)": "IEE (%)", "IEE FACTURA ACTUAL (€)": "CURRENT INVOICE IEE (€)", "IVA FACTURA ACTUAL (€)": "CURRENT INVOICE VAT (€)", "DESCUENTO ENERGÍA ACTUAL (%)": "CURRENT ENERGY DISCOUNT (%)",
+    "IVA Factura Actual (€)": "Current Invoice VAT (€)", "IEE Factura Actual (€)": "Current Invoice IEE (€)", "Dto. Energía Actual (%)": "Current Energy Discount (%)",
     "Períodos de precio": "Price periods", "Esta factura tiene 2 períodos de precio distintos": "This invoice has 2 different price periods",
     "Indica los días y precios de cada sub-período. La IA intentará extraerlos automáticamente.": "Indicate days and prices. AI will try to extract them automatically.",
     "DÍAS PERÍODO 1": "PERIOD 1 DAYS", "DÍAS PERÍODO 2": "PERIOD 2 DAYS", "€/kWh PERÍODO 1 (P1)": "€/kWh PERIOD 1 (P1)", "€/kWh PERÍODO 2 (P1)": "€/kWh PERIOD 2 (P1)",
-    "Término de potencia — P1 a P6": "Power term — P1 to P6", "Término de energía — P1 a P6": "Energy term — P1 to P6", "kW": "kW", "IMPORTE (€)": "AMOUNT (€)", "kWh": "kWh", "€/kWh": "€/kWh",
+    "Término de potencia — P1 a P6": "Power term — P1 to P6", "Término de Potencia": "Power Term", "Término de energía — P1 a P6": "Energy term — P1 to P6", "Término de Energía": "Energy Term",
+    "kW": "kW", "IMPORTE (€)": "AMOUNT (€)", "Importe (€)": "Amount (€)", "kWh": "kWh", "€/kWh": "€/kWh", "Per.": "Per.",
     "Autoconsumo": "Autoconsum", "Esta factura tiene autoconsumo": "This invoice has self-consumption", "kWh GENERADOS / COMPENSADOS": "GENERATED / COMPENSATED kWh",
     "€/kWh PRECIO COMPENSACIÓN ACTUAL": "CURRENT €/kWh COMPENSATION PRICE", "TOTAL COMPENSACIÓN (€)": "TOTAL COMPENSATION (€)", "La compensación se calculará automáticamente: kWh × €/kWh": "Compensation calculated automatically: kWh × €/kWh",
+    "kWh Compensados": "Compensated kWh", "€/kWh Compensación": "€/kWh Compensation", "Total Compensación (€)": "Total Compensation (€)",
     "Conceptos adicionales": "Additional concepts", "ENERGÍA REACTIVA (€)": "REACTIVE ENERGY (€)", "EXCESO POTENCIA (€)": "POWER EXCESS (€)", "ALQUILER EQUIPOS (€)": "EQUIPMENT RENTAL (€)",
     "BONO SOCIAL / FINANCIACIÓN (€)": "SOCIAL BONUS / FINANCING (€)", "SERVICIO / OTROS (€)": "SERVICE / OTHERS (€)", "solo factura actual": "only current invoice",
+    "Reactiva (€)": "Reactive (€)", "Exceso Potencia (€)": "Power Excess (€)", "Alquiler Equipos (€)": "Equipment Rental (€)",
     "Otros conceptos sujetos a IEE": "Other concepts subject to IEE", "+ Añadir concepto": "+ Add concept", "Siguiente → Comparativa": "Next → Comparison", "← Volver": "← Back",
     "Facturación actual": "Current billing", "Ranking de ofertas": "Offers ranking", "Oferta seleccionada": "Selected offer", "📄 Generar PDF para comercial": "📄 Generate PDF for agent",
     "Base de Datos de Ofertas": "Offers Database", "Tarifas disponibles · se guardan en archivo local": "Available tariffs · saved in local file", "+ Nueva Oferta": "+ New Offer",
     "🔑 API Key Anthropic": "🔑 Anthropic API Key", "API KEY": "API KEY", "Guardar API Key": "Save API Key", "🌐 Idioma": "🌐 Language", "IDIOMA DE LA INTERFAZ": "INTERFACE LANGUAGE",
-    "👤 Gestión de Usuarios": "👤 User Management", "+ Nuevo usuario": "+ New user", "Cancelar": "Cancel", "Guardar": "Save", "Guardar Oferta": "Save Offer",
+    "👤 Gestión de Usuarios": "👤 User Management", "+ Nuevo usuario": "+ New user", "+ Nuevo Usuario": "+ New User", "Cancelar": "Cancel", "Guardar": "Save", "Guardar Oferta": "Save Offer",
     "Comicionador": "Commissions", "Comercializadoras": "Suppliers", "Añadir Tramo": "Add Tier", "Guardar Cambios": "Save Changes", "Eliminar Empresa": "Delete Company",
     "Escalado de Comisiones (Tramos)": "Commission Tiers (Tiers)", "Selecciona una comercializadora para configurar sus comisiones.": "Select a supplier to configure its commissions.",
     "NOMBRE DE LA OFERTA": "OFFER NAME", "COMERCIALIZADORA": "SUPPLIER", "TIPO DE PRECIO": "PRICE TYPE", "PERMANENCIA": "COMMITMENT", "VALIDEZ (días)": "VALIDITY (days)",
@@ -44,7 +49,20 @@ const I18N = {
     "Los precios de potencia y energía incluyen todos los PEAJES/ATR.": "Power and energy prices include all TOLLS/ATR.",
     "Cálculos de carácter informativo no vinculantes.": "Informative calculations, not binding.", "Fecha propuesta": "Proposal date", "Nombre del Asesor": "Advisor Name",
     "Sin permanencia": "No commitment", "PRECIO FIJO": "FIXED PRICE", "VARIABLE": "VARIABLE",
-    "Tarifa": "Tariff", "PER.": "PER.", "€/kW·día": "€/kW·day", "DTO.": "DISC.", "IVA": "VAT"
+    "Tarifa": "Tariff", "PER.": "PER.", "€/kW·día": "€/kW·day", "DTO.": "DISC.", "IVA": "VAT",
+    "Lecturas Reales": "Real Readings", "kWh (lectura)": "kWh (reading)",
+    "Asesor y Fecha": "Advisor and Date", "Asesor Comercial": "Commercial Advisor", "Fecha": "Date", "Parámetros CUPS": "CUPS Parameters",
+    "Consumo Anual (kWh)": "Annual Consumption (kWh)", "Potencia Contratada (kW)": "Contracted Power (kW)", "Tarifa ≥3.0: hasta 6 periodos de potencia": "Tariff ≥3.0: up to 6 power periods",
+    "Documentación": "Documentation", "Módulos": "Modules", "General": "General", "Ajustes Globales": "Global Settings", "Ajustes Globales y Personalización": "Global Settings and Customization",
+    "Inteligencia Artificial": "Artificial Intelligence", "Usuarios": "Users", "Datos / Backup": "Data / Backup", "Idioma de la Interfaz": "Interface Language",
+    "Mis Datos Personales": "My Personal Data", "Nombre del Asesor (Aparecerá en los estudios)": "Advisor Name (Will appear on studies)", "Email de acceso": "Login Email",
+    "Nueva Contraseña (dejar vacío para no cambiar)": "New Password (leave empty to keep)", "Guardar Configuración y Perfil": "Save Configuration and Profile",
+    "Estos valores se autocompletarán por defecto en nuevas simulaciones.": "These values will autofill by default on new simulations.",
+    "Nombre de la Empresa (Cabecera PDF)": "Company Name (PDF Header)", "Texto legal (Pie de página PDF)": "Legal text (PDF Footer)", "Guardar Ajustes Globales": "Save Global Settings",
+    "Configuración IA": "AI Configuration", "Proveedor": "Provider", "API Key Anthropic": "Anthropic API Key", "API Key Google": "Google API Key", "API Key OpenAI": "OpenAI API Key", "Guardar Configuración": "Save Configuration",
+    "Gestión de Usuarios": "User Management", "Editar Usuario": "Edit User", "Nombre": "Name", "Rol": "Role", "Contraseña": "Password", "Guardar Usuario": "Save User",
+    "Exporta o importa las bases de datos locales (Ofertas y Comisiones) como archivos JSON.": "Export or import local databases (Offers and Commissions) as JSON files.",
+    "Descargar Backup JSON": "Download JSON Backup", "Importar JSON": "Import JSON"
   },
   ca: {
     "CORREO ELECTRÓNICO": "CORREU ELECTRÒNIC", "CONTRASEÑA": "CONTRASENYA", "Entrar": "Entrar",
@@ -52,46 +70,64 @@ const I18N = {
     "NOMBRE DEL ASESOR": "NOM DE L'ASSESSOR", "FECHA DE LA PROPUESTA": "DATA DE LA PROPOSTA", "Subir factura": "Pujar factura", "Haz clic o arrastra archivos aquí": "Fes clic o arrossega fitxers aquí",
     "PDF o imágenes JPG/PNG · múltiples páginas permitido": "PDF o imatges JPG/PNG · Múltiples pàgines permeses", "✦ Extraer con IA": "✦ Extreure amb IA", "Cambiar archivos": "Canviar fitxers",
     "Consumo Anual del CUPS": "Consum Anual del CUPS", "CONSUMO ANUAL TOTAL (kWh)": "CONSUM ANUAL TOTAL (kWh)", "POTENCIA CONTRATADA (kW)": "POTÈNCIA CONTRACTADA (kW)", "TARIFA DETECTADA": "TARIFA DETECTADA",
-    "Datos del client": "Dades del client", "CLIENTE / RAZÓN SOCIAL": "CLIENT / RAÓ SOCIAL", "COMERCIALIZADORA ACTUAL": "COMERCIALITZADORA ACTUAL", "DIRECCIÓN": "ADREÇA", "CÓDIGO POSTAL": "CODI POSTAL", "TARIFA": "TARIFA",
-    "Parámetros de facturación": "Paràmetres de facturació", "DÍAS FACTURATS": "DIES FACTURATS", "FECHA INICIO PERÍODE": "DATA INICI PERÍODE", "TOTAL FACTURA (€) ⚠": "TOTAL FACTURA (€) ⚠",
-    "IVA / IGIC (%)": "IVA / IGIC (%)", "IEE (%)": "IEE (%)", "IEE FACTURA ACTUAL (€)": "IEE FACTURA ACTUAL (€)", "IVA FACTURA ACTUAL (€)": "IVA FACTURA ACTUAL (€)", "DESCUENTO ENERGÍA ACTUAL (%)": "DESCOMPTE ENERGIA ACTUAL (%)",
-    "Períodes de preu": "Períodes de preu", "Esta factura tiene 2 períodos de precio distintos": "Aquesta factura té 2 períodes de preu diferents",
+    "Datos del cliente": "Dades del client", "CLIENTE / RAZÓN SOCIAL": "CLIENT / RAÓ SOCIAL", "Cliente / Razón Social": "Client / Raó Social", "CUPS": "CUPS",
+    "COMERCIALIZADORA ACTUAL": "COMERCIALITZADORA ACTUAL", "Comercializadora Actual": "Comercialitzadora Actual", "DIRECCIÓN": "ADREÇA", "CÓDIGO POSTAL": "CODI POSTAL", "TARIFA": "TARIFA",
+    "Parámetros de facturación": "Paràmetres de facturació", "DÍAS FACTURADOS": "DIES FACTURATS", "Días facturados": "Dies facturats", "FECHA INICIO PERÍODO": "DATA INICI PERÍODE", "Fecha Inicio": "Data Inici", "TOTAL FACTURA (€) ⚠": "TOTAL FACTURA (€) ⚠", "Total Factura (€)": "Total Factura (€)",
+    "IVA / IGIC (%)": "IVA / IGIC (%)", "IVA (%)": "IVA (%)", "IEE (%)": "IEE (%)", "IEE FACTURA ACTUAL (€)": "IEE FACTURA ACTUAL (€)", "IVA FACTURA ACTUAL (€)": "IVA FACTURA ACTUAL (€)", "DESCUENTO ENERGÍA ACTUAL (%)": "DESCOMPTE ENERGIA ACTUAL (%)",
+    "IVA Factura Actual (€)": "IVA Factura Actual (€)", "IEE Factura Actual (€)": "IEE Factura Actual (€)", "Dto. Energía Actual (%)": "Dte. Energia Actual (%)",
+    "Períodos de precio": "Períodes de preu", "Esta factura tiene 2 períodos de precio distintos": "Aquesta factura té 2 períodes de preu diferents",
     "Indica los días y precios de cada sub-período. La IA intentará extraerlos automáticamente.": "Indica els dies i preus. La IA intentarà extreure'ls automàticament.",
     "DÍAS PERÍODO 1": "DIES PERÍODE 1", "DÍAS PERÍODO 2": "DIES PERÍODE 2", "€/kWh PERÍODO 1 (P1)": "€/kWh PERÍODO 1 (P1)", "€/kWh PERÍODO 2 (P1)": "€/kWh PERÍODO 2 (P1)",
-    "Término de potencia — P1 a P6": "Terme de potència — P1 a P6", "Término de energía — P1 a P6": "Terme d'energia — P1 a P6", "kW": "kW", "IMPORTE (€)": "IMPORT (€)", "kWh": "kWh", "€/kWh": "€/kWh",
-    "Autoconsumo": "Autoconsum", "Esta factura tiene autoconsumo": "Aquesta factura té autoconsum", "kWh GENERATS / COMPENSATS": "kWh GENERATS / COMPENSATS",
-    "€/kWh PRECIO COMPENSACIÓN ACTUAL": "€/kWh PREU COMPENSACIÓ ACTUAL", "TOTAL COMPENSACIÓ (€)": "TOTAL COMPENSACIÓ (€)", "La compensación se calculará automáticamente: kWh × €/kWh": "La compensació es calcularà automàticament: kWh × €/kWh",
+    "Término de potencia — P1 a P6": "Terme de potència — P1 a P6", "Término de Potencia": "Terme de Potència", "Término de energía — P1 a P6": "Terme d'energia — P1 a P6", "Término de Energía": "Terme d'Energia",
+    "kW": "kW", "IMPORTE (€)": "IMPORT (€)", "Importe (€)": "Import (€)", "kWh": "kWh", "€/kWh": "€/kWh", "Per.": "Per.",
+    "Autoconsumo": "Autoconsum", "Esta factura tiene autoconsumo": "Aquesta factura té autoconsum", "kWh GENERADOS / COMPENSADOS": "kWh GENERATS / COMPENSATS",
+    "€/kWh PRECIO COMPENSACIÓN ACTUAL": "€/kWh PREU COMPENSACIÓ ACTUAL", "TOTAL COMPENSACIÓN (€)": "TOTAL COMPENSACIÓ (€)", "La compensación se calculará automáticamente: kWh × €/kWh": "La compensació es calcularà automàticament: kWh × €/kWh",
+    "kWh Compensados": "kWh Compensats", "€/kWh Compensación": "€/kWh Compensació", "Total Compensación (€)": "Total Compensació (€)",
     "Conceptos adicionales": "Conceptes addicionals", "ENERGÍA REACTIVA (€)": "ENERGIA REACTIVA (€)", "EXCESO POTENCIA (€)": "EXCÉS POTÈNCIA (€)", "ALQUILER EQUIPOS (€)": "LLOGUER EQUIPS (€)",
     "BONO SOCIAL / FINANCIACIÓN (€)": "BO SOCIAL / FINANÇAMENT (€)", "SERVICIO / OTROS (€)": "SERVEI / ALTRES (€)", "solo factura actual": "només factura actual",
+    "Reactiva (€)": "Reactiva (€)", "Exceso Potencia (€)": "Excés Potència (€)", "Alquiler Equipos (€)": "Lloguer Equips (€)",
     "Otros conceptos sujetos a IEE": "Altres conceptes subjectes a IEE", "+ Añadir concepto": "+ Afegir concepte", "Siguiente → Comparativa": "Següent → Comparativa", "← Volver": "← Tornar",
     "Facturación actual": "Facturació actual", "Ranking de ofertas": "Rànquing d'ofertes", "Oferta seleccionada": "Oferta seleccionada", "📄 Generar PDF para comercial": "📄 Generar PDF per a comercial",
     "Base de Datos de Ofertas": "Base de Dades d'Ofertes", "Tarifas disponibles · se guardan en archivo local": "Tarifes disponibles · Es guarden a l'arxiu local", "+ Nueva Oferta": "+ Nova Oferta",
-    "🔑 API Key Anthropic": "🔑 API Key Anthropic", "API KEY": "API KEY", "Guardar API Key": "Desar API Key", "🌐 Idioma": "🌐 Idioma", "IDIOMA DE LA INTERFÍCIE": "IDIOMA DE LA INTERFÍCIE",
-    "👤 Gestión de Usuarios": "👤 Gestió d'Usuaris", "+ Nuevo usuario": "+ Nou usuari", "Cancelar": "Cancel·lar", "Guardar": "Desar", "Guardar Oferta": "Desar Oferta",
-    "Comisionado": "Comissionat", "Comercializadoras": "Comercialitzadores", "Añadir Tramo": "Afegir Tram", "Guardar Cambios": "Desar Canvis", "Eliminar Empresa": "Eliminar Empresa",
-    "Escalado de Comisiones (Tramos)": "Escalat de Comissions (Trams)", "Selecciona una comercializadora per configurar les seves comissions.": "Selecciona una comercialitzadora per configurar les seves comissions.",
-    "NOMBRE DE LA OFERTA": "NOM DE L'OFERTA", "COMERCIALIZADORA": "COMERCIALITZADORA", "TIPO DE PREEU": "TIPUS DE PREU", "PERMANENCIA": "PERMANÈNCIA", "VALIDEZ (dies)": "VALIDESA (dies)",
-    "Rang d'aplicació": "Rang d'aplicació", "POT. MÍNIMA (kW)": "POT. MÍNIMA (kW)", "POT. MÀXIMA (kW)": "POT. MÀXIMA (kW)", "CONSUM MÍN. (kWh/any)": "CONSUM MÍN. (kWh/any)", "CONSUM MÀX. (kWh/any)": "CONSUM MÀX. (kWh/any)",
-    "Comisión": "Comissió", "TIPO DE COMISIÓN": "TIPUS DE COMISSIÓ", "€ Fijo por contracte": "€ Fix per contracte", "Por consum (Coef. × kWh × FEE / 1000)": "Per consum",
-    "COMISIÓN FIJA (€)": "COMISSIÓ FIXA (€)", "COEFICIENTE REPARTO (%)": "COEFICIENT REPARTIMENT (%)", "FEE (€/MWh)": "FEE (€/MWh)", "RESULTADO (es calcula automàticament)": "RESULTAT (es calcula automàticament)",
+    "🔑 API Key Anthropic": "🔑 API Key Anthropic", "API KEY": "API KEY", "Guardar API Key": "Desar API Key", "🌐 Idioma": "🌐 Idioma", "IDIOMA DE LA INTERFAZ": "IDIOMA DE LA INTERFÍCIE",
+    "👤 Gestión de Usuarios": "👤 Gestió d'Usuaris", "+ Nuevo usuario": "+ Nou usuari", "+ Nuevo Usuario": "+ Nou Usuari", "Cancelar": "Cancel·lar", "Guardar": "Desar", "Guardar Oferta": "Desar Oferta",
+    "Comicionador": "Comissionat", "Comercializadoras": "Comercialitzadores", "Añadir Tramo": "Afegir Tram", "Guardar Cambios": "Desar Canvis", "Eliminar Empresa": "Eliminar Empresa",
+    "Escalado de Comisiones (Tramos)": "Escalat de Comissions (Trams)", "Selecciona una comercializadora para configurar sus comisiones.": "Selecciona una comercialitzadora per configurar les seves comissions.",
+    "NOMBRE DE LA OFERTA": "NOM DE L'OFERTA", "COMERCIALIZADORA": "COMERCIALITZADORA", "TIPO DE PRECIO": "TIPUS DE PREU", "PERMANENCIA": "PERMANÈNCIA", "VALIDEZ (días)": "VALIDESA (dies)",
+    "Rango de aplicación": "Rang d'aplicació", "POT. MÍNIMA (kW)": "POT. MÍNIMA (kW)", "POT. MÁXIMA (kW)": "POT. MÀXIMA (kW)", "CONSUMO MÍN. (kWh/año)": "CONSUM MÍN. (kWh/any)", "CONSUMO MÁX. (kWh/año)": "CONSUM MÀX. (kWh/any)",
+    "Comisión": "Comissió", "TIPO DE COMISIÓN": "TIPUS DE COMISSIÓ", "€ Fijo por contrato": "€ Fix per contracte", "Por consumo (Coef. × kWh × FEE / 1000)": "Per consum",
+    "COMISIÓN FIJA (€)": "COMISSIÓ FIXA (€)", "COEFICIENTE REPARTO (%)": "COEFICIENT REPARTIMENT (%)", "FEE (€/MWh)": "FEE (€/MWh)", "RESULTADO (se calcula automático)": "RESULTAT (es calcula automàticament)",
     "COMPENSACIÓN AUTOCONSUMO (€/kWh)": "COMPENSACIÓ AUTOCONSUM (€/kWh)", "DESCUENTO POTENCIA (%)": "DESCOMPTE POTÈNCIA (%)", "DESCUENTO ENERGÍA GLOBAL (%)": "DESCOMPTE ENERGIA GLOBAL (%)",
-    "Discriminar dte. energía per període": "Discriminar dte. energia per període", "Precios de potencia (€/kW/día)": "Preus de potència (€/kW/dia)", "Precios de energía (€/kWh)": "Preus d'energia (€/kWh)",
-    "NOMBRE": "NOM", "EMAIL": "EMAIL", "CONTRASEÑA": "CONTRASENYA", "(deixar buit per no canviar)": "(deixar buit per no canviar)", "PERFIL": "PERFIL",
+    "Discriminar dto. energía por periodo": "Discriminar dte. energia per període", "Precios de potencia (€/kW/día)": "Preus de potència (€/kW/dia)", "Precios de energía (€/kWh)": "Preus d'energia (€/kWh)",
+    "NOMBRE": "NOM", "EMAIL": "EMAIL", "CONTRASEÑA": "CONTRASENYA", "(dejar vacío para no cambiar)": "(deixar buit per no canviar)", "PERFIL": "PERFIL",
     "Admin": "Admin", "Comercial": "Comercial", "Administración": "Administració",
     "Cargando...": "Carregant...", "Selecciona una oferta": "Selecciona una oferta", "Credenciales incorrectas": "Credencials incorrectes",
     
     "Factura": "Factura", "Revisión": "Revisió", "Comparativa": "Comparativa", "Ofertas": "Ofertes", "Ajustes": "Ajustos", "Comisiones": "Comissions",
     "ESTUDIO COMPARATIVO ENERGÉTICO": "ESTUDI COMPARATIU ENERGÈTIC", "Preparado el": "Preparat el", "Válido": "Vàlid per", "días": "dies",
     "OFERTA": "OFERTA", "TIPO": "TIPUS", "FACTURACIÓN ACTUAL": "FACTURACIÓ ACTUAL", "NUEVA FACTURACIÓN": "NOVA FACTURACIÓ",
-    "T. FIJO — POTENCIA": "T. FIX — POTÈNCIA", "T. VARIABLE — ENERGÍA": "T. VARIABLE — ENERGIA", "OTROS CONCEPTOS": "ALTRES CONCEPTES", "IMPUESTOS I ALTRES": "IMPOSTOS I ALTRES",
-    "TOTALS": "TOTALS", "TOTAL POTENCIA": "TOTAL POTÈNCIA", "TOTAL ENERGÍA": "TOTAL ENERGIA", "TOTAL": "TOTAL", "Base Imponible": "Base Imposable",
-    "Compensación Autoconsum": "Compensació Autoconsum", "Energía Reactiva": "Energia Reactiva", "Alquiler Equips": "Lloguer Equips",
-    "Financiación Bono Social": "Finançament Bo Social", "Servicios": "Serveis", "Imp. Electricitat (IEE)": "Imp. Electricitat (IEE)",
+    "T. FIJO — POTENCIA": "T. FIX — POTÈNCIA", "T. VARIABLE — ENERGÍA": "T. VARIABLE — ENERGIA", "OTROS CONCEPTOS": "ALTRES CONCEPTES", "IMPUESTOS Y OTROS": "IMPOSTOS I ALTRES",
+    "TOTALES": "TOTALS", "TOTAL POTENCIA": "TOTAL POTÈNCIA", "TOTAL ENERGÍA": "TOTAL ENERGIA", "TOTAL": "TOTAL", "Base Imponible": "Base Imposable",
+    "Compensación Autoconsumo": "Compensació Autoconsum", "Energía Reactiva": "Energia Reactiva", "Alquiler Equipos": "Lloguer Equips",
+    "Financiación Bono Social": "Finançament Bo Social", "Servicios": "Serveis", "Imp. Electricidad (IEE)": "Imp. Electricitat (IEE)",
     "AHORRO ESTIMADO EN FACTURA": "ESTALVI ESTIMAT A LA FACTURA", "Ahorro anual estimado": "Estalvi anual estimat", "año": "any", "€/año": "€/any",
     "Los precios de potencia y energía incluyen todos los PEAJES/ATR.": "Els preus de potència i energia inclouen tots els PEATGES/ATR.",
-    "Cálculos de caràcter informatiu no vinculantes.": "Càlculs de caràcter informatiu no vinculantes.", "Fecha propuesta": "Data proposta", "Nombre del Asesor": "Nom de l'Assessor",
+    "Cálculos de carácter informativo no vinculantes.": "Càlculs de caràcter informatiu no vinculants.", "Fecha propuesta": "Data proposta", "Nombre del Asesor": "Nom de l'Assessor",
     "Sin permanencia": "Sense permanència", "PRECIO FIJO": "PREU FIX", "VARIABLE": "VARIABLE",
-    "Tarifa": "Tariff", "PER.": "PER.", "€/kW·día": "€/kW·dia", "DTO.": "DTE.", "IVA": "IVA"
+    "Tarifa": "Tarifa", "PER.": "PER.", "€/kW·día": "€/kW·dia", "DTO.": "DTE.", "IVA": "IVA",
+    "Lecturas Reales": "Lectures Reals", "kWh (lectura)": "kWh (lectura)",
+    "Asesor y Fecha": "Assessor i Data", "Asesor Comercial": "Assessor Comercial", "Fecha": "Data", "Parámetros CUPS": "Paràmetres CUPS",
+    "Consumo Anual (kWh)": "Consum Anual (kWh)", "Potencia Contratada (kW)": "Potència Contractada (kW)", "Tarifa ≥3.0: hasta 6 periodos de potencia": "Tarifa ≥3.0: fins a 6 períodes de potència",
+    "Documentación": "Documentació", "Módulos": "Mòduls", "General": "General", "Ajustes Globales": "Ajustos Globals", "Ajustes Globales y Personalización": "Ajustos Globals i Personalització",
+    "Inteligencia Artificial": "Intel·ligència Artificial", "Usuarios": "Usuaris", "Datos / Backup": "Dades / Backup", "Idioma de la Interfaz": "Idioma de la Interfície",
+    "Mis Datos Personales": "Les Meves Dades Personals", "Nombre del Asesor (Aparecerá en los estudios)": "Nom de l'Assessor (Apareixerà als estudis)", "Email de acceso": "Email d'accés",
+    "Nueva Contraseña (dejar vacío para no cambiar)": "Nova Contrasenya (deixar buit per no canviar)", "Guardar Configuración y Perfil": "Desar Configuració i Perfil",
+    "Estos valores se autocompletarán por defecto en nuevas simulaciones.": "Aquests valors s'emplenaran per defecte a les noves simulacions.",
+    "Nombre de la Empresa (Cabecera PDF)": "Nom de l'Empresa (Capçalera PDF)", "Texto legal (Pie de página PDF)": "Text legal (Peu de pàgina PDF)", "Guardar Ajustes Globales": "Desar Ajustos Globals",
+    "Configuración IA": "Configuració IA", "Proveedor": "Proveïdor", "API Key Anthropic": "API Key Anthropic", "API Key Google": "API Key Google", "API Key OpenAI": "API Key OpenAI", "Guardar Configuración": "Desar Configuració",
+    "Gestión de Usuarios": "Gestió d'Usuaris", "Editar Usuario": "Editar Usuari", "Nombre": "Nom", "Rol": "Rol", "Contraseña": "Contrasenya", "Guardar Usuario": "Desar Usuari",
+    "Exporta o importa las bases de datos locales (Ofertas y Comisiones) como archivos JSON.": "Exporta o importa les bases de dades locals (Ofertes i Comissions) com a arxius JSON.",
+    "Descargar Backup JSON": "Descarregar Backup JSON", "Importar JSON": "Importar JSON"
   }
 };
 
@@ -175,8 +211,8 @@ async function initApp(){
   $('cfg_idioma').value = ST.config.idioma||'es';
   
   if(isAdmin) {
-    $('cfg_glo_iva').value = ST.config.glo_iva || 21;
-    $('cfg_glo_iee').value = ST.config.glo_iee || 5.1126963;
+    $('cfg_glo_empresa').value = ST.config.glo_empresa || 'Estudio Luz';
+    $('cfg_glo_pie').value = ST.config.glo_pie || 'Cálculos de carácter informativo no vinculantes.';
   }
   
   $('cfg_prof_nombre').value = ST.user.nombre || '';
@@ -187,9 +223,9 @@ async function initApp(){
   $('g_asesor').value = ST.user.nombre || '';
   $('g_fecha').value = new Date().toISOString().split('T')[0];
   
-  // Set default taxes from global config
-  $('f_iva').value = ST.config.glo_iva || 21;
-  $('f_iee').value = ST.config.glo_iee || 5.1126963;
+  // Removed auto-fill of taxes from global defaults since each invoice dictates it
+  $('f_iva').value = '';
+  $('f_iee').value = '';
 
   buildTbls(); renderUsersTable(); go('fac'); applyLang(document.body);
 }
@@ -219,8 +255,8 @@ async function saveConfig(){
   ST.config.provider = p; ST.config.idioma = $('cfg_idioma').value; ST.config.model = $('cfg_model').value.trim();
   
   if(ST.user.role === 'admin') {
-    ST.config.glo_iva = n($('cfg_glo_iva').value) || 21;
-    ST.config.glo_iee = n($('cfg_glo_iee').value) || 5.1126963;
+    ST.config.glo_empresa = $('cfg_glo_empresa').value.trim() || 'Estudio Luz';
+    ST.config.glo_pie = $('cfg_glo_pie').value.trim() || 'Cálculos de carácter informativo no vinculantes.';
   }
   
   const key_anth = $('cfg_apikey').value.trim();
@@ -320,6 +356,7 @@ function go(id){
   if(id==='ofr'){ loadOfertas().then(()=>renderOfrList()); }
   if(id==='com'){ renderComList(); }
   if(id==='cfg'){ renderUsersTable(); }
+  setTimeout(() => applyLang(document.body), 50);
 }
 
 function sb(msg, type){
@@ -710,7 +747,7 @@ function genPDF(){
   const logoSVG='<svg width="110" height="52" viewBox="0 0 110 52" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="13" r="12" fill="#3d4044"/><text x="14" y="18" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">G</text><circle cx="14" cy="39" r="12" fill="#2cb5ad"/><text x="14" y="44" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">G</text><text x="32" y="18" font-family="Arial" font-size="12" font-weight="900" fill="#3d4044">GESTION</text><text x="32" y="33" font-family="Arial" font-size="12" font-weight="900" fill="#3d4044">GROUP</text><text x="32" y="48" font-family="Arial" font-size="6.5" fill="#2cb5ad" letter-spacing="2">SOLUCIONES ENERGÉTICAS</text></svg>';
   const w=window.open('','_blank');
   w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10.5px;color:#2d3138;padding:16px 20px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-bottom:9px;border-bottom:3px solid #2cb5ad}.hdr-right{text-align:right;font-size:9.5px;color:#6b7280;line-height:1.6}.hdr-right b{font-size:11px;color:#2d3138}.offer-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:#f0fafb;border:1px solid #b2e0de;border-radius:6px;padding:7px 10px;margin-bottom:9px;font-size:9.5px}.offer-bar .lbl{color:#6b7280;margin-bottom:1px}.offer-bar .val{font-weight:800;font-size:10.5px}.offer-bar .val.teal{color:#2cb5ad}table{width:100%;border-collapse:collapse;font-size:9.5px}.th-act{background:#3d4044;color:#fff;padding:4px 7px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center}.th-nva{background:#2cb5ad;color:#fff;padding:4px 7px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center}.sec-hdr{background:#f3f4f6;color:#3d4044;padding:4px 7px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e5e7eb}.col-hdr{background:#f9fafb;color:#374151;padding:3px 7px;font-size:8.5px;font-weight:600;text-align:center;border-bottom:1px solid #e5e7eb}.per{padding:3px 7px;border-bottom:1px solid #f3f4f6;color:#2cb5ad;font-weight:700;width:26px;text-align:center}.num{padding:3px 7px;border-bottom:1px solid #f3f4f6;text-align:right}.num.bold{font-weight:700}.num.nva{background:#f0fafb}.sep{width:5px;background:#e5e7eb;padding:0}.dto-row td{padding:2px 7px;border-bottom:1px solid #e5e7eb;font-size:8.5px;color:#6b7280;font-style:italic}.dto-row .red{color:#dc2626;font-style:normal}.tot-row td{background:#f9fafb;font-weight:700;font-size:10.5px;padding:4px 7px;border-top:2px solid #d1d5db;border-bottom:1px solid #e5e7eb}.tot-row .nva{background:#e6f7f6;color:#1a7a75}.ext-row td{padding:3px 7px;border-bottom:1px solid #f3f4f6}.ext-row .nva{background:#f0fafb}.ahorro{background:linear-gradient(135deg,#e6f7f6,#d1f0ee);border:2px solid #2cb5ad;border-radius:7px;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;margin:10px 0}.ahorro-lbl{font-weight:800;color:#1a7a75;font-size:11px}.ahorro-sub{font-size:9.5px;color:#2cb5ad;margin-top:2px}.ahorro-val .eur{font-size:22px;font-weight:900;color:#1a7a75;text-align:right}.ahorro-val .pct{font-size:13px;font-weight:700;color:#2cb5ad;text-align:right}.it{width:100%;border-collapse:collapse;margin-bottom:9px}.it th{background:#f3f4f6;padding:4px 9px;font-size:8.5px;font-weight:700;text-align:left;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e5e7eb}.it td{padding:4px 9px;border-bottom:1px solid #f3f4f6;font-size:10px}.footer-bar{display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px;padding-top:8px;border-top:2px solid #2cb5ad}.asesor-box{background:#f0fafb;border:1px solid #b2e0de;border-radius:6px;padding:7px 14px}.asesor-lbl{font-size:8px;color:#6b7280;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}.asesor-name{font-size:12px;font-weight:800;color:#2d3138}.foot-legal{font-size:8px;color:#9ca3af;max-width:400px;line-height:1.5;text-align:right}@media print{body{padding:8px 12px}@page{margin:7mm}}</style></head><body>'
-  +'<div class="hdr"><div><div style="margin-bottom:5px">'+logoSVG+'</div><div style="font-size:16px;font-weight:900;color:#2d3138;letter-spacing:-.3px">'+t('ESTUDIO COMPARATIVO ENERGÉTICO')+'</div><div style="font-size:9px;color:#6b7280;margin-top:2px">'+t('Preparado el')+' '+fechaFmt(fechaProp)+' · ' + t('Válido') + ' '+validezDias+' '+t('días')+'</div></div>'
+  +'<div class="hdr"><div><div style="margin-bottom:5px">'+logoSVG+'</div><div style="font-size:16px;font-weight:900;color:#2d3138;letter-spacing:-.3px">'+t('ESTUDIO COMPARATIVO ENERGÉTICO')+' &nbsp;&middot;&nbsp; <span style="color:#2cb5ad">'+(ST.config.glo_empresa || 'Estudio Luz')+'</span></div><div style="font-size:9px;color:#6b7280;margin-top:2px">'+t('Preparado el')+' '+fechaFmt(fechaProp)+' · ' + t('Válido') + ' '+validezDias+' '+t('días')+'</div></div>'
   +'<div class="hdr-right"><b>'+( d.cliente||'' )+'</b><br>'+(d.cups||'')+'<br>'+(d.direccion?d.direccion+(d.cp?', '+d.cp:''):'')+'<br>'+t('Tarifa')+' '+d.tarifa+' · '+d.potencia_kw+' '+t('kW')+' · '+d.dias+' '+t('días')+'</div></div>'
   +'<div class="offer-bar"><div><div class="lbl">'+t('COMERCIALIZADORA ACTUAL')+'</div><div class="val">'+(d.comercializadora||'—')+'</div></div><div><div class="lbl">'+t('OFERTA')+'</div><div class="val teal">'+r.nombre+'</div></div><div><div class="lbl">'+t('PERMANENCIA')+'</div><div class="val">'+(r.permanencia||t('Sin permanencia'))+'</div></div><div><div class="lbl">'+t('TIPO')+'</div><div class="val">'+t(r.tipo)+'</div></div></div>'
   +'<table><thead><tr><td colspan="4" class="th-act" style="text-align:center">'+t('FACTURACIÓN ACTUAL')+' · '+(d.comercializadora||'')+'</td><td class="sep"></td><td colspan="3" class="th-nva" style="text-align:center">'+t('NUEVA FACTURACIÓN')+' · '+r.nombre+' · '+r.comercializadora+'</td></tr>'
@@ -741,7 +778,7 @@ function genPDF(){
   +'<table class="it"><thead><tr><th>'+t('COMERCIALIZADORA')+'</th><th>'+t('TARIFA')+'</th><th>'+t('TIPO PRECIO')+'</th><th>'+t('PERMANENCIA')+'</th><th>'+t('VALIDEZ')+'</th></tr></thead>'
   +'<tbody><tr><td>'+r.comercializadora+'</td><td>'+r.tarifa+'</td><td>'+t(r.tipo)+'</td><td>'+(r.permanencia||t('Sin permanencia'))+'</td><td>'+validezDias+' '+t('días')+'</td></tr></tbody></table>'
   +'<div class="footer-bar"><div class="asesor-box"><div class="asesor-lbl">'+t('Nombre del Asesor')+'</div><div class="asesor-name">'+(asesor||'_________________________')+'</div></div>'
-  +'<div class="foot-legal">'+t('Los precios de potencia y energía incluyen todos los PEAJES/ATR.')+'<br>'+t('Cálculos de carácter informativo no vinculantes.')+'<br>'+t('Fecha propuesta')+': '+fechaFmt(fechaProp)+'</div></div>'
+  +'<div class="foot-legal">'+t('Los precios de potencia y energía incluyen todos los PEAJES/ATR.')+'<br>'+(ST.config.glo_pie ? t(ST.config.glo_pie) : t('Cálculos de carácter informativo no vinculantes.'))+'<br>'+t('Fecha propuesta')+': '+fechaFmt(fechaProp)+'</div></div>'
   +'</body></html>');
   w.document.close(); setTimeout(function(){w.print();},700);
 }
@@ -758,6 +795,7 @@ function renderOfrList(){
       </div>
     </div>
   `).join(''); 
+  applyLang($('ofrList'));
 }
 async function saveOfertasToServer(){ await fetch('/api/ofertas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.ofertas)}); }
 function delOfr(id){ if(confirm('Eliminar?')){ ST.ofertas=ST.ofertas.filter(x=>x.id!==id); saveOfertasToServer(); renderOfrList(); } }
@@ -903,6 +941,7 @@ function renderUsersTable(){
       </div>
     </div>
   `).join(''); 
+  applyLang($('cfg-users-content'));
 }
 
 function newUser(){
