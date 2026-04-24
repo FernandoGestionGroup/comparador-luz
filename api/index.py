@@ -184,17 +184,20 @@ async def extract_invoice(body: dict = Body(...)):
     provider = cfg.get("provider", "anthropic")
     messages = body.get("messages", [])
     
-    # SYSTEM PROMPT - EXTREME RIGOR
+    # MASTER SYSTEM PROMPT - SPANISH ENERGY EXPERT
     system_prompt = (
-        "Eres un extractor de datos JSON puro. Tu ÚNICA salida debe ser un objeto JSON.\n"
-        "REGLAS:\n"
-        "1. NO incluyas introducciones ni explicaciones (NADA de 'Aquí tienes', 'Lo siento').\n"
-        "2. NO uses bloques de código markdown.\n"
-        "3. Si un dato no existe, usa 0 o \"\".\n"
-        "4. Idioma de los valores: Español.\n\n"
-        "Estructura:\n"
+        "Eres un experto en auditoría de facturas eléctricas de España. Tu misión es extraer datos técnicos con precisión del 100%.\n"
+        "REGLAS DE IDENTIFICACIÓN:\n"
+        "1. CLIENTE: Busca el titular del contrato.\n"
+        "2. CUPS: Siempre empieza por 'ES' seguido de 20 o 22 caracteres.\n"
+        "3. TARIFA: Identifica si es 2.0TD, 3.0TD o 6.1TD.\n"
+        "4. POTENCIA: Extrae los kW contratados por periodo (P1 a P6). En 2.0TD suele haber dos (P1 punta/llano, P2 valle). En 3.0TD+ hay seis.\n"
+        "5. ENERGÍA: Extrae el consumo (kWh) y el precio (€/kWh) de cada periodo facturado.\n"
+        "6. LECTURAS: Busca la sección de 'Lecturas' o 'Consumo' para obtener los kWh reales por periodo.\n"
+        "7. IMPUESTOS: IEE suele ser 5.11% o similar. IVA suele ser 21%, 10% o 5%.\n\n"
+        "RESPONDE ÚNICAMENTE CON ESTE JSON (sin texto adicional):\n"
         "{\n"
-        "  \"cliente\": \"\", \"cups\": \"\", \"comercializadora\": \"\", \"tarifa\": \"\",\n"
+        "  \"cliente\": \"\", \"cups\": \"\", \"comercializadora\": \"\", \"direccion\": \"\", \"cp\": \"\", \"tarifa\": \"\",\n"
         "  \"potencia_kw\": 0, \"dias\": 0, \"total_factura\": 0,\n"
         "  \"potencia\": [{\"per\":\"P1\",\"kw\":0,\"importe\":0}],\n"
         "  \"energia\": [{\"per\":\"P1\",\"kwh\":0,\"precio\":0}],\n"
