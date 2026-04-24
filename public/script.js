@@ -567,7 +567,8 @@ function genPDF(){
     else if(eLines.length===0 && kwhSim>0){ rowsEn+='<tr><td class="per">'+p+'</td><td class="num">—</td><td class="num">—</td><td class="num bold">— €</td><td class="sep"></td><td class="num">'+kwhSim.toLocaleString('es-ES',{minimumFractionDigits:3})+'</td><td class="num">'+fmtP(epNva)+'</td><td class="num bold nva">'+(impNvaSim>0?fmt(impNvaSim):'— €')+'</td></tr>'; } 
     else { eLines.forEach((l,i)=>{ const impAB=l.kwh*l.precio; tEnActBase+=impAB; rowsEn+='<tr><td class="per">'+(i===0?p:'')+'</td><td class="num">'+(l.kwh>0?l.kwh.toLocaleString('es-ES',{minimumFractionDigits:3}):'—')+'</td><td class="num">'+(l.precio>0?fmtP(l.precio):'—')+'</td><td class="num bold">'+(impAB>0?fmt(impAB):'— €')+'</td><td class="sep"></td>'+(i===0?'<td class="num">'+(kwhSim>0?kwhSim.toLocaleString('es-ES',{minimumFractionDigits:3}):'—')+'</td><td class="num">'+(epNva>0?fmtP(epNva):'—')+'</td><td class="num bold nva">'+(impNvaSim>0?fmt(impNvaSim):'— €')+'</td>':'<td class="num" style="background:#f0fafb"></td><td class="num" style="background:#f0fafb"></td><td class="num bold nva"></td>')+'</tr>'; }); }
   });
-  const dtoActEur=tEnActBase*(dtoActPct/100);
+  const dtoActEur=tEnActBase*(dtoActPct/100), tEnActNeto=tEnActBase-dtoActEur;
+  const dtoNvaEur=tEnNvaBase*(dtoEnNvaPct/100);
   let rowsExtras='';
   if((d.iee_extras||[]).length>0){ rowsExtras+='<tr><td colspan="8" class="sec-hdr">OTROS CONCEPTOS</td></tr>'; d.iee_extras.forEach(function(e){rowsExtras+='<tr><td colspan="3" style="padding:4px 8px;border-bottom:1px solid #e5e7eb">'+e.nombre+'</td><td class="num bold">'+fmt(e.importe)+'</td><td class="sep"></td><td colspan="2"></td><td class="num bold nva">'+(e.mantiene?fmt(e.importe):'— €')+'</td></tr>';}); }
   const autActEur=d.tiene_autoconsumo?(d.autoconsumo_kwh||0)*(d.autoconsumo_precio_kwh||0):0;
