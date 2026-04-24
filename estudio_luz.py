@@ -1342,7 +1342,9 @@ function addIeeExtra(nombre,importe,mantiene){
   lbl.appendChild(chk); lbl.appendChild(document.createTextNode(' En nueva'));
   const btn=document.createElement('button'); btn.className='btn btn-d'; btn.textContent='✕'; btn.onclick=function(){document.getElementById(id).remove();};
   div.appendChild(i1); div.appendChild(i2); div.appendChild(lbl); div.appendChild(btn);
-  $('ieeExtras').appendChild(div);
+  const container = $('ieeExtras');
+  if(container) container.appendChild(div);
+  else console.warn("Contenedor 'ieeExtras' no encontrado.");
 }
 function getIeeExtras(){
   return Array.from($('ieeExtras').querySelectorAll('div[id^="iee_"]')).map(function(row){

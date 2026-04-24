@@ -475,7 +475,9 @@ function addIeeExtra(nombre,importe,mantiene){
   lbl.appendChild(chk); lbl.appendChild(document.createTextNode(' En nueva'));
   const btn=document.createElement('button'); btn.className='btn-trash-circle'; btn.innerHTML='<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>'; btn.onclick=function(){document.getElementById(id).remove();};
   div.appendChild(i1); div.appendChild(i2); div.appendChild(lbl); div.appendChild(btn);
-  $('ieeExtras').appendChild(div);
+  const container = $('ieeExtras');
+  if(container) container.appendChild(div);
+  else console.warn("Contenedor 'ieeExtras' no encontrado.");
 }
 function clearIeeExtras(){ if($('ieeExtras')) $('ieeExtras').innerHTML=''; ieeExtraCount=0;}
 
