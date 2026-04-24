@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estudio Luz - Comparador Energético Profesional</title>
+    <link rel="icon" type="image/png" href="https://gestiongroup.es/wp-content/uploads/2024/07/cropped-Logotipo-Gestion-Group-32x32.png">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,10 +21,10 @@
       <div class="brand">ESTUDIO <span>LUZ</span></div>
       <div class="sub">Gestion Group · Soluciones Energéticas</div>
     </div>
-    <div class="login-field"><label>CORREO ELECTRÓNICO</label><input type="email" id="l_email" placeholder="usuario@gestiongroup.es" autocomplete="username"></div>
-    <div class="login-field"><label>CONTRASEÑA</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()"></div>
+    <div class="login-field"><label>Correo Electrónico</label><input type="email" id="l_email" placeholder="usuario@gestiongroup.es" autocomplete="username"></div>
+    <div class="login-field"><label>Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()"></div>
     <div class="login-err" id="l_err">Credenciales incorrectas</div>
-    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <button class="login-btn" onclick="doLogin()">Acceder al Sistema</button>
   </div>
 </div>
 
@@ -52,10 +53,10 @@
     <!-- ══ FACTURA APORTADA ══ -->
     <div class="page on" id="p-fac">
       <div class="g2" style="margin-bottom:16px">
-        <div class="field"><label>NOMBRE DEL ASESOR</label>
-          <input id="g_asesor" placeholder="Ej: Adrián" oninput="localStorage.setItem('el_asesor',this.value)">
+        <div class="field"><label>Asesor Energético</label>
+          <input id="g_asesor" placeholder="Nombre completo" oninput="localStorage.setItem('el_asesor',this.value)">
         </div>
-        <div class="field"><label>FECHA DE LA PROPUESTA</label>
+        <div class="field"><label>Fecha de Propuesta</label>
           <input type="date" id="g_fecha">
         </div>
       </div>
@@ -80,7 +81,7 @@
       </div>
 
       <div class="card" style="margin-top:16px">
-        <div class="ct">Consumo Anual del CUPS</div>
+        <div class="ct">Parámetros del CUPS</div>
         <div class="g3">
           <div class="field"><label>CONSUMO ANUAL TOTAL (kWh)</label>
             <input type="number" id="f_consumo_anual" step="1" placeholder="Ej: 45000">
