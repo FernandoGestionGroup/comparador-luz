@@ -169,7 +169,19 @@ const n = v => parseFloat(v)||0;
 const clean = s => (s||'').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 let ST = {
-  user: null, config: {}, files: [], ofertas: [], comisiones: [], usuarios: [], sel: null, selCom: null, editOfrId: null, editUserId: null, _res: []
+  user: null, config: {}, files: [], ofertas: [], comisiones: [], usuarios: [], sel: null, selCom: null, editOfrId: null, editUserId: null, _res: [],
+  api_key: localStorage.getItem('st_api_key')
+};
+
+// --- INTERCEPTOR DE FETCH PARA SEGURIDAD ---
+const _fetch = window.fetch;
+window.fetch = function(url, options = {}) {
+  if (typeof url === 'string' && url.startsWith('/api/') && url !== '/api/login' && url !== '/api/health') {
+    options.headers = options.headers || {};
+    const key = ST.api_key || localStorage.getItem('st_api_key');
+    if (key) options.headers['X-API-KEY'] = key;
+  }
+  return _fetch(url, options);
 };
 
 async function doLogin(){
@@ -184,6 +196,8 @@ async function doLogin(){
     const d = await r.json();
     if(d.ok){
       ST.user = d.user;
+      ST.api_key = d.api_key;
+      localStorage.setItem('st_api_key', d.api_key);
       $('l_err').style.display='none';
       $('l_pass').value='';
       initApp();
@@ -194,7 +208,11 @@ async function doLogin(){
   } catch(e){ $('l_err').style.display='block'; $('l_err').textContent='Error de conexión'; }
 }
 
-function doLogout(){ ST.user=null; ST.sel=null; $('loginScreen').style.display='flex'; $('shell').style.display='none'; }
+function doLogout(){ 
+  ST.user=null; ST.api_key=null; ST.sel=null; 
+  localStorage.removeItem('st_api_key');
+  $('loginScreen').style.display='flex'; $('shell').style.display='none'; 
+}
 
 async function initApp(){
   $('loginScreen').style.display='none'; $('shell').style.display='flex';

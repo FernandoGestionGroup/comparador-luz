@@ -5,19 +5,30 @@ import hashlib
 import time
 import sys
 import traceback
+import re
 
 # --- FASTAPI INIT ---
-from fastapi import FastAPI, Body, Request
+from fastapi import FastAPI, Body, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # TODO: Cambiar por dominios específicos en prod
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- SECURITY ---
+API_KEY_HEADER = APIKeyHeader(name="X-API-KEY", auto_error=False)
+MASTER_API_KEY = os.environ.get("MASTER_API_KEY", "GG_STUDIO_2026_DEFAULT")
+
+async def verify_api_key(api_key: str = Depends(API_KEY_HEADER)):
+    if not api_key or api_key != MASTER_API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid API Key")
+    return api_key
 
 # --- PATH RESOLUTION (Vercel-Safe) ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -39,8 +50,11 @@ def get_db():
                 cred = credentials.Certificate(creds_dict)
                 firebase_admin.initialize_app(cred)
             else:
+                # Intento de inicialización por defecto (ADC o config interna de Firebase)
                 try: firebase_admin.initialize_app()
-                except: pass
+                except Exception as e:
+                    print(f"Fallback DB Init failed: {e}")
+                    pass
         if firebase_admin._apps:
             _STORAGE["db"] = firestore.client()
             return _STORAGE["db"]
@@ -51,15 +65,16 @@ def get_db():
 # --- GLOBAL ERROR HANDLER ---
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # Loguear el error internamente (opcionalmente a un servicio como Sentry)
+    print(f"CRITICAL ERROR: {str(exc)}")
+    print(traceback.format_exc())
+    
+    # Respuesta segura para el cliente (sin tracebacks ni rutas)
     return JSONResponse(
         status_code=500,
         content={
-            "error": str(exc),
-            "traceback": traceback.format_exc(),
-            "cwd": os.getcwd(),
-            "static_path": str(STATIC_DIR),
-            "exists": STATIC_DIR.exists(),
-            "dir_contents": os.listdir(str(CURRENT_DIR)) if CURRENT_DIR.exists() else []
+            "error": "Error interno del servidor. Por favor, contacte con soporte.",
+            "type": exc.__class__.__name__
         }
     )
 
@@ -70,30 +85,37 @@ def hash_pw(pw):
 
 @app.get("/api/health")
 async def health():
+    # Esta ruta se mantiene pública para health checks de Vercel
     db_ok = False
     try: db_ok = bool(get_db())
     except: pass
     return {
         "status": "ok", 
         "db": db_ok, 
-        "static_exists": STATIC_DIR.exists(),
-        "files": os.listdir(str(STATIC_DIR)) if STATIC_DIR.exists() else []
+        "static_exists": STATIC_DIR.exists()
     }
 
 @app.post("/api/login")
 async def login(body: dict = Body(...)):
+    # El login es público por naturaleza
     db = get_db()
-    if not db: return {'ok': False, 'error': 'DB Error'}
+    if not db: return {'ok': False, 'error': 'Database Connection Error'}
     email = body.get('email', '').strip().lower()
     pw = hash_pw(body.get('password', ''))
+    
     q = db.collection('usuarios').where('email', '==', email).limit(1).get()
     if not q: return {'ok': False, 'error': 'Credenciales incorrectas'}
+    
     u = q[0].to_dict()
     if u.get('password') == pw:
-        return {'ok': True, 'user': {'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']}}
+        return {
+            'ok': True, 
+            'user': {'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']},
+            'api_key': MASTER_API_KEY # Enviamos la llave para que el frontend la use en futuras peticiones
+        }
     return {'ok': False, 'error': 'Credenciales incorrectas'}
 
-@app.get("/api/config")
+@app.get("/api/config", dependencies=[Depends(verify_api_key)])
 async def get_config():
     db = get_db()
     if not db: return {"provider": "anthropic"}
@@ -103,7 +125,7 @@ async def get_config():
     for k in ['api_key', 'gemini_key', 'openai_key']: safe[f'has_{k}'] = bool(cfg.get(k))
     return safe
 
-@app.post("/api/config")
+@app.post("/api/config", dependencies=[Depends(verify_api_key)])
 async def save_config(body: dict = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
@@ -114,17 +136,18 @@ async def save_config(body: dict = Body(...)):
     ref.set(body)
     return {'ok': True}
 
-@app.get("/api/ofertas")
+@app.get("/api/ofertas", dependencies=[Depends(verify_api_key)])
 async def get_ofertas():
     db = get_db()
     return [d.to_dict() for d in db.collection('ofertas').stream()] if db else []
 
-@app.post("/api/ofertas")
+@app.post("/api/ofertas", dependencies=[Depends(verify_api_key)])
 async def save_ofertas(body: list = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
     batch = db.batch()
-    exist = {d.id for d in db.collection('ofertas').stream()}
+    # Optimización: Solo realizamos lectura de IDs para limpiar los borrados
+    exist = {d.id for d in db.collection('ofertas').select(['id']).stream()}
     incom = {o.get('id') for o in body if o.get('id')}
     for o in body:
         if o.get('id'): batch.set(db.collection('ofertas').document(o['id']), o)
@@ -132,17 +155,17 @@ async def save_ofertas(body: list = Body(...)):
     batch.commit()
     return {'ok': True}
 
-@app.get("/api/comisiones")
+@app.get("/api/comisiones", dependencies=[Depends(verify_api_key)])
 async def get_comisiones():
     db = get_db()
     return [d.to_dict() for d in db.collection('comisiones').stream()] if db else []
 
-@app.post("/api/comisiones")
+@app.post("/api/comisiones", dependencies=[Depends(verify_api_key)])
 async def save_comisiones(body: list = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
     batch = db.batch()
-    exist = {d.id for d in db.collection('comisiones').stream()}
+    exist = {d.id for d in db.collection('comisiones').select(['id']).stream()}
     incom = {c.get('id') for c in body if c.get('id')}
     for c in body:
         if c.get('id'): batch.set(db.collection('comisiones').document(c['id']), c)
@@ -150,13 +173,13 @@ async def save_comisiones(body: list = Body(...)):
     batch.commit()
     return {'ok': True}
 
-@app.get("/api/usuarios")
+@app.get("/api/usuarios", dependencies=[Depends(verify_api_key)])
 async def get_usuarios():
     db = get_db()
     if not db: return []
     return [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']} for u in [d.to_dict() for d in db.collection('usuarios').stream()]]
 
-@app.post("/api/usuarios")
+@app.post("/api/usuarios", dependencies=[Depends(verify_api_key)])
 async def manage_usuarios(body: dict = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
@@ -173,7 +196,7 @@ async def manage_usuarios(body: dict = Body(...)):
         ref.document(uid).delete()
     return {'ok': True}
 
-@app.post("/api/extract")
+@app.post("/api/extract", dependencies=[Depends(verify_api_key)])
 async def extract_invoice(body: dict = Body(...)):
     db = get_db()
     if not db: return JSONResponse(status_code=500, content={"error": "Database not initialized"})
@@ -181,7 +204,6 @@ async def extract_invoice(body: dict = Body(...)):
     d = db.collection('config').document('global').get()
     cfg = d.to_dict() if d.exists else {}
     
-    # 🤖 AI HUB - ORQUESTADOR INTELIGENTE
     messages = body.get("messages", [])
     provider_manual = cfg.get("provider", "auto")
     
@@ -204,155 +226,99 @@ async def extract_invoice(body: dict = Body(...)):
         "openai": cfg.get("openai_key"),
         "anthropic": cfg.get("api_key")
     }
-    # Fix manual para Groq por URL
     if not keys["groq"] and cfg.get("openai_url") and "groq" in cfg.get("openai_url"): keys["groq"] = cfg.get("openai_key")
 
-    # 3. Decidir Proveedor Óptimo (Con Overwrite para PDF)
+    # 3. Decidir Proveedor Óptimo
     selected = provider_manual
-    
-    # 🚨 REGLA DE ORO: Si hay PDF y tenemos Google, USA GOOGLE.
     if has_pdf and keys["google"]:
         selected = "google"
-        print("Smart Selector: PDF DETECTADO -> Forzando Google Gemini para evitar errores")
     elif selected == "auto" or not selected:
         if has_pdf:
             selected = "google" if keys["google"] else ("anthropic" if keys["anthropic"] else "openai")
         else:
             selected = "groq" if keys["groq"] else ("openai" if keys["openai"] else ("google" if keys["google"] else "anthropic"))
 
-    # 4. Fallback de seguridad (si el seleccionado no tiene llave)
     if not keys.get(selected) and selected != "auto":
         for p, k in keys.items():
             if k: 
                 selected = p
                 break
-
     provider = selected
-    print(f"AI Hub: Ejecutando extracción vía {provider.upper()} (Manual: {provider_manual})")
 
-    # MASTER SYSTEM PROMPT - SPANISH ENERGY EXPERT (STRICT REALITY ONLY)
     system_prompt = (
         "Eres un experto extractor de facturas eléctricas españolas (mercado libre y regulado). Tu precisión debe ser del 100%.\n\n"
         "REGLAS CRÍTICAS:\n"
-        "1. IDENTIFICACIÓN DE TARIFA: Busca 'Tarifa de acceso', 'Peaje' o similar. Debe ser 2.0TD, 3.0TD o 6.1TD. Es vital para el resto de la extracción.\n"
+        "1. IDENTIFICACIÓN DE TARIFA: Busca 'Tarifa de acceso', 'Peaje' o similar. Debe ser 2.0TD, 3.0TD o 6.1TD.\n"
         "2. MAPEO DE PERIODOS:\n"
-        "   - Si es 2.0TD: Busca P1 (Punta), P2 (Llano) y P3 (Valle). Ignora P4-P6.\n"
-        "   - Si es 3.0TD o 6.1TD: Busca los 6 periodos (P1, P2, P3, P4, P5, P6) tanto en potencia como en energía.\n"
-        "3. DATOS DE POTENCIA: Extrae los kW contratados e importe para cada periodo disponible.\n"
-        "4. DATOS DE ENERGÍA: Extrae los kWh consumidos y el precio unitario (€/kWh) para cada periodo.\n"
-        "5. CAMPOS CLAVE: CUPS (empieza por ES...), Nombre del cliente, Dirección, CIF, Comercializadora, Total Factura, Fecha inicio/fin, IEE e IVA.\n"
-        "6. PROHIBIDO INVENTAR: Si un dato no está, devuelve \"\" o 0. No uses datos de ejemplo.\n\n"
+        "   - Si es 2.0TD: Busca P1 (Punta), P2 (Llano) y P3 (Valle).\n"
+        "   - Si es 3.0TD o 6.1TD: Busca los 6 periodos (P1-P6).\n"
+        "3. DATOS DE POTENCIA Y ENERGÍA: Extrae kW, kWh e importes.\n"
+        "4. CAMPOS CLAVE: CUPS, Nombre, Dirección, CIF, Comercializadora, Total, Fechas, IEE, IVA.\n\n"
         "ESTRUCTURA DE SALIDA (Solo JSON plano):\n"
-        "{\n"
-        "  \"cliente\": \"\", \"cups\": \"\", \"comercializadora\": \"\", \"direccion\": \"\", \"cp\": \"\", \"tarifa\": \"\", \n"
-        "  \"potencia_kw\": 0, \"dias\": 0, \"fecha_inicio\": \"YYYY-MM-DD\", \"total_factura\": 0, \n"
-        "  \"iva_pct\": 21, \"iee_pct\": 5.1126963, \"iee_act\": 0, \"iva_act\": 0,\n"
-        "  \"potencia\": [{\"per\":\"P1\",\"kw\":0,\"importe\":0}],\n"
-        "  \"energia\": [{\"per\":\"P1\",\"kwh\":0,\"precio\":0}],\n"
-        "  \"lecturas_energia\": [{\"per\":\"P1\",\"kwh\":0}],\n"
-        "  \"extras_iee\": [{\"nombre\":\"Regularización FNEE\",\"importe\":0}]\n"
-        "}"
+        "{\"cliente\":\"\",\"cups\":\"\",\"comercializadora\":\"\",\"direccion\":\"\",\"cp\":\"\",\"tarifa\":\"\",\"potencia_kw\":0,\"dias\":0,\"fecha_inicio\":\"\",\"total_factura\":0,\"iva_pct\":21,\"iee_pct\":5.1126963,\"iee_act\":0,\"iva_act\":0,\"potencia\":[],\"energia\":[],\"lecturas_energia\":[],\"extras_iee\":[]}"
     )
 
     try:
-        # 🤖 AI HUB - ORQUESTADOR CON RETRY AUTOMÁTICO
-        import re
-        text = ""
         attempted_providers = []
-        
-        # Lista de prioridades según tipo de archivo
-        if has_pdf:
-            priority = ["google", "anthropic", "openai"]
-        else:
-            priority = ["groq", "openai", "google", "anthropic"]
-        
-        # Si hay una selección manual, la ponemos al principio de la prioridad
+        priority = ["google", "anthropic", "openai"] if has_pdf else ["groq", "openai", "google", "anthropic"]
         if provider_manual != "auto" and provider_manual in priority:
-            priority.remove(provider_manual)
-            priority.insert(0, provider_manual)
+            priority.remove(provider_manual); priority.insert(0, provider_manual)
 
         for provider in priority:
             if not keys.get(provider): continue
             attempted_providers.append(provider)
-            print(f"AI Hub: Intentando extracción vía {provider.upper()}...")
-            
             try:
+                text = ""
                 if provider == "anthropic":
                     import anthropic
                     client = anthropic.Anthropic(api_key=keys["anthropic"])
-                    response = client.messages.create(
-                        model=cfg.get("model") or "claude-3-5-sonnet-latest",
-                        max_tokens=4096, system=system_prompt, messages=messages
-                    )
+                    response = client.messages.create(model=cfg.get("model") or "claude-3-5-sonnet-latest", max_tokens=4096, system=system_prompt, messages=messages)
                     text = response.content[0].text
-                    
                 elif provider == "google":
-                    from google import genai
-                    from google.genai import types
+                    from google import genai; from google.genai import types
                     client = genai.Client(api_key=keys["google"])
                     contents = []
                     for m in messages:
                         parts = []
                         for c in m['content']:
                             if c['type'] == 'text': parts.append(types.Part.from_text(text=c['text']))
-                            elif c['type'] in ['image', 'document']:
-                                parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
+                            elif c['type'] in ['image', 'document']: parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
                         contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
-                    
-                    response = client.models.generate_content(
-                        model=cfg.get("model") or "gemini-2.0-flash",
-                        contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt)
-                    )
+                    response = client.models.generate_content(model=cfg.get("model") or "gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt))
                     text = response.text
-
                 elif provider in ["openai", "groq"]:
                     from openai import OpenAI
                     is_groq = (provider == "groq")
                     b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
                     client = OpenAI(api_key=keys["openai"], base_url=b_url)
-                    
                     oa_messages = [{"role": "system", "content": system_prompt}]
                     for m in messages:
                         content = []
                         for c in m['content']:
                             if c['type'] == 'text': content.append({"type": "text", "text": c['text']})
-                            elif c['type'] == 'image':
-                                content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
+                            elif c['type'] == 'image': content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
                         oa_messages.append({"role": m['role'], "content": content})
-                    
-                    default_model = "meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o-mini"
-                    response = client.chat.completions.create(
-                        model=cfg.get("model") or default_model,
-                        messages=oa_messages, max_tokens=4096,
-                        response_format={"type": "json_object"} if not is_groq else None 
-                    )
+                    response = client.chat.completions.create(model=cfg.get("model") or ("meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o-mini"), messages=oa_messages, max_tokens=4096, response_format={"type": "json_object"} if not is_groq else None)
                     text = response.choices[0].message.content
 
-                # Si llegamos aquí sin excepción, buscamos el JSON y salimos del loop
                 match = re.search(r'(\{.*\})', text, re.DOTALL)
-                if match:
-                    text = match.group(1)
-                    return JSONResponse(status_code=200, content={"text": text, "provider": provider})
-                
+                if match: return JSONResponse(status_code=200, content={"text": match.group(1), "provider": provider})
             except Exception as e:
-                err_str = str(e)
-                print(f"Error con {provider}: {err_str}")
-                if any(x in str(e) for x in ["429", "limit", "401", "key", "authentication"]):
-                    continue
+                print(f"Error con {provider}: {e}")
+                if any(x in str(e).lower() for x in ["429", "limit", "401", "key", "auth"]): continue
                 raise e
-        return JSONResponse(status_code=500, content={"error": f"Todas las IAs fallaron. Intentado con: {attempted_providers}"})
+        return JSONResponse(status_code=500, content={"error": f"Fallo en IAs: {attempted_providers}"})
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
+        return JSONResponse(status_code=500, content={"error": "Error durante la extracción"})
 
 # --- SERVING FRONTEND (VERCEL SAFE) ---
 @app.get("/")
 async def serve_root():
     index = STATIC_DIR / "index.html"
     if index.exists(): return FileResponse(str(index))
-    # Fallback to local test structure
     alt_index = CURRENT_DIR / "static" / "index.html"
     if alt_index.exists(): return FileResponse(str(alt_index))
-    return JSONResponse({"error": "index.html not found", "path": str(index)})
+    return JSONResponse({"error": "index.html not found"})
 
 @app.get("/{path:path}")
 async def serve_static(path: str):
@@ -361,10 +327,6 @@ async def serve_static(path: str):
     if file.is_file(): return FileResponse(str(file))
     alt_file = CURRENT_DIR / "static" / path
     if alt_file.is_file(): return FileResponse(str(alt_file))
-    
     index = STATIC_DIR / "index.html"
     if index.exists(): return FileResponse(str(index))
-    alt_index = CURRENT_DIR / "static" / "index.html"
-    if alt_index.exists(): return FileResponse(str(alt_index))
-    
     return JSONResponse({"error": f"File {path} not found"})
