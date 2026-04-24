@@ -382,7 +382,7 @@ async function extract(){
     if(textContent && textContent.length > 50){ uc.push({type:'text', text: "TEXTO DEL DOC:\n" + textContent}); }
     else { uc.push(m.includes('pdf') ?{type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}} :{type:'image',source:{type:'base64',media_type:m,data:f.data}}); }
   }
-  const prompt='Extrae los datos de la factura en JSON:\n{"cliente":"","cups":"","comercializadora":"","direccion":"","cp":"","tarifa":"","potencia_kw":0,"dias":0,"fecha_inicio":"","total_factura":0,"iva_pct":21,"iee_pct":5.1126963,"iee_act":0,"iva_act":0,"dto_energia_act_pct":0,"tiene_autoconsumo":false,"autoconsumo_kwh":0,"autoconsumo_precio_kwh":0,"autoconsumo_total":0,"potencia":[],"energia":[],"lecturas_energia":[],"reactiva":0,"exceso_potencia":0,"alquiler_equipos":0,"bono_social":0,"servicio":0}';
+  const prompt='Extrae los datos de la factura en JSON:\n{"cliente":"","cups":"","comercializadora":"","direccion":"","cp":"","tarifa":"","potencia_kw":0,"dias":0,"fecha_inicio":"","total_factura":0,"iva_pct":21,"iee_pct":5.1126963,"iee_act":0,"iva_act":0,"dto_energia_act_pct":0,"tiene_autoconsumo":false,"autoconsumo_kwh":0,"autoconsumo_precio_kwh":0,"autoconsumo_total":0,"potencia":[],"energia":[],"lecturas_energia":[],"extras_iee":[],"reactiva":0,"exceso_potencia":0,"alquiler_equipos":0,"bono_social":0,"servicio":0}';
   uc.push({type:'text',text:prompt});
   try{
     const resp=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:uc}]})});
@@ -449,6 +449,13 @@ function fillForm(d){
       tr.dataset.per = l.per;
       tr.innerHTML = `<td class="lbl">${l.per}</td><td><input type="number" class="lk_in" value="${l.kwh}"></td><td><button onclick="this.closest('tr').remove()">✕</button></td>`;
       $('lecT').appendChild(tr);
+    });
+  }
+
+  // Poblar extras IEE (Regularización FNEE, etc.)
+  if(d.extras_iee && d.extras_iee.length) {
+    d.extras_iee.forEach(e => {
+      if(e.importe > 0) addIeeExtra(e.nombre, e.importe, true);
     });
   }
 

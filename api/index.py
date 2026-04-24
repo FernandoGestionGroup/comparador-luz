@@ -251,7 +251,8 @@ async def extract_invoice(body: dict = Body(...)):
         "  \"iva_pct\": 21, \"iee_pct\": 5.1126963, \"iee_act\": 0, \"iva_act\": 0,\n"
         "  \"potencia\": [{\"per\":\"P1\",\"kw\":0,\"importe\":0}],\n"
         "  \"energia\": [{\"per\":\"P1\",\"kwh\":0,\"precio\":0}],\n"
-        "  \"lecturas_energia\": [{\"per\":\"P1\",\"kwh\":0}]\n"
+        "  \"lecturas_energia\": [{\"per\":\"P1\",\"kwh\":0}],\n"
+        "  \"extras_iee\": [{\"nombre\":\"Regularización FNEE\",\"importe\":0}]\n"
         "}"
     )
 
