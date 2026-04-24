@@ -13,10 +13,14 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 
+import uuid
+
 app = FastAPI()
+
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # TODO: Cambiar por dominios específicos en prod
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -24,11 +28,33 @@ app.add_middleware(
 # --- SECURITY ---
 API_KEY_HEADER = APIKeyHeader(name="X-API-KEY", auto_error=False)
 MASTER_API_KEY = os.environ.get("MASTER_API_KEY", "GG_STUDIO_2026_DEFAULT")
+PASSWORD_SALT = os.environ.get("PASSWORD_SALT", "GG_STUDIO_SALT_PROTECT_2026")
 
-async def verify_api_key(api_key: str = Depends(API_KEY_HEADER)):
-    if not api_key or api_key != MASTER_API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid API Key")
-    return api_key
+async def get_current_user(api_key: str = Depends(API_KEY_HEADER)):
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized: No API Key provided")
+    
+    # Soporte para la Master Key (retrocompatibilidad para el admin inicial si es necesario)
+    if api_key == MASTER_API_KEY:
+        return {"id": "master", "role": "admin", "nombre": "Master"}
+
+    db = get_db()
+    if not db:
+        raise HTTPException(status_code=500, detail="Database error")
+    
+    # Verificar sesión en Firestore
+    session = db.collection('_sessions').document(api_key).get()
+    if not session.exists:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or expired session")
+    
+    sdata = session.to_dict()
+    # Aquí se podría añadir validación de expiración (sdata['expires'])
+    return sdata
+
+async def verify_admin(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+    return user
 
 # --- PATH RESOLUTION (Vercel-Safe) ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -79,6 +105,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 def hash_pw(pw):
+    return hashlib.sha256((pw + PASSWORD_SALT).encode()).hexdigest()
+
+def hash_pw_legacy(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
 # --- API ROUTES ---
@@ -101,21 +130,43 @@ async def login(body: dict = Body(...)):
     db = get_db()
     if not db: return {'ok': False, 'error': 'Database Connection Error'}
     email = body.get('email', '').strip().lower()
-    pw = hash_pw(body.get('password', ''))
+    password_plain = body.get('password', '')
+    pw_new = hash_pw(password_plain)
+    pw_old = hash_pw_legacy(password_plain)
     
     q = db.collection('usuarios').where('email', '==', email).limit(1).get()
     if not q: return {'ok': False, 'error': 'Credenciales incorrectas'}
     
     u = q[0].to_dict()
-    if u.get('password') == pw:
+    stored_pw = u.get('password')
+    
+    is_valid = False
+    if stored_pw == pw_new:
+        is_valid = True
+    elif stored_pw == pw_old:
+        # Migración transparente al nuevo hash con salt
+        db.collection('usuarios').document(u['id']).update({'password': pw_new})
+        is_valid = True
+        
+    if is_valid:
+        # Generar Token de sesión único
+        session_token = str(uuid.uuid4())
+        user_data = {'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']}
+        
+        # Guardar sesión
+        db.collection('_sessions').document(session_token).set({
+            **user_data,
+            'created_at': time.time()
+        })
+        
         return {
             'ok': True, 
-            'user': {'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']},
-            'api_key': MASTER_API_KEY # Enviamos la llave para que el frontend la use en futuras peticiones
+            'user': user_data,
+            'api_key': session_token
         }
     return {'ok': False, 'error': 'Credenciales incorrectas'}
 
-@app.get("/api/config", dependencies=[Depends(verify_api_key)])
+@app.get("/api/config", dependencies=[Depends(get_current_user)])
 async def get_config():
     db = get_db()
     if not db: return {"provider": "anthropic"}
@@ -125,7 +176,7 @@ async def get_config():
     for k in ['api_key', 'gemini_key', 'openai_key']: safe[f'has_{k}'] = bool(cfg.get(k))
     return safe
 
-@app.post("/api/config", dependencies=[Depends(verify_api_key)])
+@app.post("/api/config", dependencies=[Depends(verify_admin)])
 async def save_config(body: dict = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
@@ -136,18 +187,19 @@ async def save_config(body: dict = Body(...)):
     ref.set(body)
     return {'ok': True}
 
-@app.get("/api/ofertas", dependencies=[Depends(verify_api_key)])
+@app.get("/api/ofertas", dependencies=[Depends(get_current_user)])
 async def get_ofertas():
     db = get_db()
-    return [d.to_dict() for d in db.collection('ofertas').stream()] if db else []
+    # Límite de seguridad para evitar Timeouts
+    return [d.to_dict() for d in db.collection('ofertas').limit(500).stream()] if db else []
 
-@app.post("/api/ofertas", dependencies=[Depends(verify_api_key)])
+@app.post("/api/ofertas", dependencies=[Depends(verify_admin)])
 async def save_ofertas(body: list = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
     batch = db.batch()
-    # Optimización: Solo realizamos lectura de IDs para limpiar los borrados
-    exist = {d.id for d in db.collection('ofertas').select(['id']).stream()}
+    # Optimización: Solo realizamos lectura de IDs para limpiar los borrados (límite de seguridad)
+    exist = {d.id for d in db.collection('ofertas').select(['id']).limit(1000).stream()}
     incom = {o.get('id') for o in body if o.get('id')}
     for o in body:
         if o.get('id'): batch.set(db.collection('ofertas').document(o['id']), o)
@@ -155,17 +207,17 @@ async def save_ofertas(body: list = Body(...)):
     batch.commit()
     return {'ok': True}
 
-@app.get("/api/comisiones", dependencies=[Depends(verify_api_key)])
+@app.get("/api/comisiones", dependencies=[Depends(get_current_user)])
 async def get_comisiones():
     db = get_db()
-    return [d.to_dict() for d in db.collection('comisiones').stream()] if db else []
+    return [d.to_dict() for d in db.collection('comisiones').limit(200).stream()] if db else []
 
-@app.post("/api/comisiones", dependencies=[Depends(verify_api_key)])
+@app.post("/api/comisiones", dependencies=[Depends(verify_admin)])
 async def save_comisiones(body: list = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
     batch = db.batch()
-    exist = {d.id for d in db.collection('comisiones').select(['id']).stream()}
+    exist = {d.id for d in db.collection('comisiones').select(['id']).limit(500).stream()}
     incom = {c.get('id') for c in body if c.get('id')}
     for c in body:
         if c.get('id'): batch.set(db.collection('comisiones').document(c['id']), c)
@@ -173,13 +225,13 @@ async def save_comisiones(body: list = Body(...)):
     batch.commit()
     return {'ok': True}
 
-@app.get("/api/usuarios", dependencies=[Depends(verify_api_key)])
+@app.get("/api/usuarios", dependencies=[Depends(verify_admin)])
 async def get_usuarios():
     db = get_db()
     if not db: return []
-    return [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']} for u in [d.to_dict() for d in db.collection('usuarios').stream()]]
+    return [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']} for u in [d.to_dict() for d in db.collection('usuarios').limit(100).stream()]]
 
-@app.post("/api/usuarios", dependencies=[Depends(verify_api_key)])
+@app.post("/api/usuarios", dependencies=[Depends(verify_admin)])
 async def manage_usuarios(body: dict = Body(...)):
     db = get_db()
     if not db: return {'ok': False}
@@ -196,7 +248,7 @@ async def manage_usuarios(body: dict = Body(...)):
         ref.document(uid).delete()
     return {'ok': True}
 
-@app.post("/api/extract", dependencies=[Depends(verify_api_key)])
+@app.post("/api/extract", dependencies=[Depends(get_current_user)])
 async def extract_invoice(body: dict = Body(...)):
     db = get_db()
     if not db: return JSONResponse(status_code=500, content={"error": "Database not initialized"})
