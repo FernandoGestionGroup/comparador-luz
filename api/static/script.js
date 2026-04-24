@@ -548,12 +548,13 @@ async function extractTextFromPDF(dataBase64) {
 }
 
 async function extract(){
-  const p = ST.config.provider || 'anthropic';
-  const hasKey = (p==='anthropic' && ST.config.has_api_key) || 
+  const p = ST.config.provider || 'auto';
+  const hasKey = (p==='auto' && (ST.config.has_api_key || ST.config.has_gemini_key || ST.config.has_openai_key)) ||
+                 (p==='anthropic' && ST.config.has_api_key) || 
                  (p==='google' && ST.config.has_gemini_key) || 
                  ((p==='openai'||p==='groq') && ST.config.has_openai_key);
 
-  if(!hasKey){sb('Configura la API Key para ' + p.toUpperCase() + ' en Configuración','err'); return;}
+  if(!hasKey){sb('Configura al menos una API Key en la pestaña Configuración','err'); return;}
   if(!ST.files.length){sb('Sube al menos un archivo','err');return;}
   $('btnEx').disabled=true; sb('Analizando factura con IA ('+p.toUpperCase()+')…','load');
 
