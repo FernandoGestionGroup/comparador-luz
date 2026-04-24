@@ -182,6 +182,7 @@ async def extract_invoice(body: dict = Body(...)):
     cfg = d.to_dict() if d.exists else {}
     
     # 🤖 AI HUB - ORQUESTADOR INTELIGENTE
+    messages = body.get("messages", [])
     provider_manual = cfg.get("provider", "auto")
     
     # 1. Detectar tipo de archivo
