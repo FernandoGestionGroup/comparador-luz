@@ -274,11 +274,11 @@ async def extract_invoice(body: dict = Body(...)):
         else:
             return JSONResponse(status_code=400, content={"error": f"Proveedor no soportado: {provider}"})
 
-        # Robust JSON extraction
+        # 🛡️ AISLADOR DE JSON AGRESIVO
         import re
-        json_match = re.search(r'(\{.*\})', text, re.DOTALL)
-        if json_match:
-            text = json_match.group(1)
+        match = re.search(r'(\{.*\})', text, re.DOTALL)
+        if match:
+            text = match.group(1)
         
         return JSONResponse(status_code=200, content={"text": text, "provider": provider})
 

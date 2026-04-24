@@ -575,11 +575,26 @@ async function extract(){
     });
     const d=await resp.json();
     if(d.error) throw new Error(d.error);
-    const ex=JSON.parse(d.text.replace(/```json|```/g,'').trim());
-    fillForm(ex);
+    
     const used = d.provider ? 'vía ' + d.provider : 'IA';
-    sb('Extracción completada ✓ (' + used + ') — Revisa los datos en "Revisión"','ok');
-    go('rev');
+    
+    // 🛡️ CAPA DE SEGURIDAD EXTRA EN CLIENTE
+    let cleanText = d.text || "";
+    const firstBrace = cleanText.indexOf('{');
+    const lastBrace = cleanText.lastIndexOf('}');
+    if(firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace){
+      cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+    }
+
+    try {
+      const ex = JSON.parse(cleanText);
+      fillForm(ex);
+      sb('Extracción completada ✓ (' + used + ') — Revisa los datos en "Revisión"','ok');
+      go('rev');
+    } catch(parseErr) {
+      console.error("Parse Error:", parseErr, "Text:", cleanText);
+      throw new Error("La IA no devolvió un JSON válido. Inténtalo de nuevo.");
+    }
   }catch(e){
     sb('Error: '+e.message,'err');
   }finally{
