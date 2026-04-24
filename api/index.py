@@ -337,36 +337,9 @@ async def extract_invoice(body: dict = Body(...)):
             except Exception as e:
                 err_str = str(e)
                 print(f"Error con {provider}: {err_str}")
-                # Si está saturado (429) o la llave es mala (401), saltamos al siguiente
-                if any(x in err_str for x in ["429", "limit", "401", "key", "authentication"]):
-                    print(f"AI Hub: {provider} falló ({err_str}), saltando al siguiente...")
+                if any(x in str(e) for x in ["429", "limit", "401", "key", "authentication"]):
                     continue
-                # Si es otro error desconocido, lo lanzamos
-                return JSONResponse(status_code=500, content={"error": err_str, "traceback": traceback.format_exc()})
-
-        return JSONResponse(status_code=500, content={"error": f"Todas las IAs fallaron o están saturadas. Intentado con: {attempted_providers}"})
-
+                raise e
+        return JSONResponse(status_code=500, content={"error": f"Todas las IAs fallaron. Intentado con: {attempted_providers}"})
     except Exception as e:
-        err_str = str(e)
-        if "429" in err_str:
-            return JSONResponse(status_code=429, content={"error": "Límite de peticiones alcanzado. Espera un minuto o usa GROQ con una foto."})
-        return JSONResponse(status_code=500, content={"error": err_str, "traceback": traceback.format_exc()})
-
-@app.post("/api/claude")
-async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
-
-# --- SERVING FRONTEND ---
-@app.get("/")
-async def serve_root():
-    index = STATIC_DIR / "index.html"
-    if index.exists(): return FileResponse(str(index))
-    return JSONResponse({"error": "index.html not found", "path": str(index), "cwd": os.getcwd()})
-
-@app.get("/{path:path}")
-async def serve_static(path: str):
-    if path.startswith("api/"): return JSONResponse({"error": "Route not found"}, status_code=404)
-    file = STATIC_DIR / path
-    if file.is_file(): return FileResponse(str(file))
-    index = STATIC_DIR / "index.html"
-    if index.exists(): return FileResponse(str(index))
-    return JSONResponse({"error": f"File {path} not found", "tried": str(file)})
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
