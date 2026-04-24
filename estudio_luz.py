@@ -431,9 +431,9 @@ body { background: var(--bg); color: var(--tx); font-family: 'Inter', system-ui,
       </div>
 
       <div class="card">
-        <div class="ct">Otros conceptos sujetos a IEE</div>
+        <div class="ct">Otros conceptos sujetos a IEE (ej. FNEE)</div>
         <div id="ieeExtras"></div>
-        <button class="btn btn-s btn-sm" style="margin-top:6px" onclick="addIeeExtra()">+ Añadir concepto</button>
+        <button class="btn btn-s btn-sm" style="margin-top:10px" onclick="addIeeExtra()">+ Añadir concepto</button>
       </div>
 
       <div class="abar">

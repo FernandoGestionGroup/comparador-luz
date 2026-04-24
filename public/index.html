@@ -352,10 +352,11 @@
                     <div class="fld"><label class="fld-label">Servicio / Otros (€)</label><input type="number" id="f_ser" class="form-input"></div>
                     <div class="fld"><label class="fld-label">Dirección</label><input id="f_dir" class="form-input"></div>
                 </div>
-                <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--slate-100)">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-                        <div class="fld-label">Conceptos extra (IEE)</div>
-                        <button class="btn-logout" onclick="addIeeExtra()" style="border-color:var(--primary); color:var(--primary)">+ Añadir Concepto</button>
+                <!-- Sección de Extras IEE -->
+                <div style="margin-top:20px; padding-top:15px; border-top:1px solid #f1f5f9">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                        <span style="font-size:11px; font-weight:700; color:var(--slate-400); text-transform:uppercase; letter-spacing:0.05em">Otros conceptos sujetos a IEE (ej. FNEE)</span>
+                        <button type="button" class="btn-logout" onclick="addIeeExtra()" style="color:var(--primary); font-weight:700; font-size:11px">+ Añadir concepto</button>
                     </div>
                     <div id="ieeExtras"></div>
                 </div>
