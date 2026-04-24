@@ -70,9 +70,12 @@ def hash_pw(pw):
 
 @app.get("/api/health")
 async def health():
+    db_ok = False
+    try: db_ok = bool(get_db())
+    except: pass
     return {
         "status": "ok", 
-        "db": bool(get_db()), 
+        "db": db_ok, 
         "static_exists": STATIC_DIR.exists(),
         "files": os.listdir(str(STATIC_DIR)) if STATIC_DIR.exists() else []
     }
@@ -175,22 +178,40 @@ async def extract_invoice(body: dict = Body(...)):
     db = get_db()
     if not db: return JSONResponse(status_code=500, content={"error": "Database not initialized"})
     
-    # Load config
     d = db.collection('config').document('global').get()
     cfg = d.to_dict() if d.exists else {}
     
     provider = cfg.get("provider", "anthropic")
     messages = body.get("messages", [])
     
+    # SYSTEM PROMPT RESTRUCTURED FOR BETTER FREE MODEL PERFORMANCE
+    system_prompt = (
+        "Eres un experto en facturas eléctricas españolas. Tu objetivo es extraer datos técnicos con precisión quirúrgica. "
+        "REGLA DE ORO: Responde únicamente con un objeto JSON plano, sin explicaciones ni bloques de código markdown.\n"
+        "Estructura esperada:\n"
+        "{\n"
+        "  \"cliente\": \"Nombre completo\",\n"
+        "  \"cups\": \"ES00...\",\n"
+        "  \"comercializadora\": \"Nombre empresa\",\n"
+        "  \"tarifa\": \"2.0TD | 3.0TD | 6.1TD\",\n"
+        "  \"potencia_kw\": 0.00,\n"
+        "  \"dias\": 0,\n"
+        "  \"total_factura\": 0.00,\n"
+        "  \"potencia\": [{\"per\":\"P1\",\"kw\":0,\"importe\":0}],\n"
+        "  \"energia\": [{\"per\":\"P1\",\"kwh\":0,\"precio\":0}],\n"
+        "  \"lecturas_energia\": [{\"per\":\"P1\",\"kwh\":0}]\n"
+        "}\n"
+        "Si no encuentras un dato, usa 0 o \"\". No inventes datos."
+    )
+
     try:
         if provider == "anthropic":
             import anthropic
             client = anthropic.Anthropic(api_key=cfg.get("api_key"))
-            # Convert messages if necessary (Anthropic expects specific format)
-            # For simplicity, we assume the frontend sends the correct format
             response = client.messages.create(
                 model=cfg.get("model") or "claude-3-5-sonnet-latest",
                 max_tokens=4096,
+                system=system_prompt,
                 messages=messages
             )
             text = response.content[0].text
@@ -198,67 +219,66 @@ async def extract_invoice(body: dict = Body(...)):
         elif provider == "google":
             from google import genai
             from google.genai import types
-            client = genai.Client(api_key=cfg.get("gemini_key"))
-            # The frontend sends a complex message structure for Anthropic. 
-            # We need to adapt it for Gemini.
-            # Usually: messages[0]['content'] is a list of parts.
-            prompt = ""
+            key = cfg.get("gemini_key")
+            if not key: return JSONResponse(status_code=400, content={"error": "Falta la API Key de Google"})
+            client = genai.Client(api_key=key)
+            
             contents = []
             for m in messages:
-                role = "user" if m['role'] == "user" else "model"
                 parts = []
                 for c in m['content']:
                     if c['type'] == 'text':
                         parts.append(types.Part.from_text(text=c['text']))
-                    elif c['type'] == 'image' or c['type'] == 'document':
-                        # Adapt base64
-                        data = c['source']['data']
-                        mtype = c['source']['media_type']
-                        parts.append(types.Part.from_bytes(data=data, mime_type=mtype))
-                contents.append(types.Content(role=role, parts=parts))
+                    elif c['type'] in ['image', 'document']:
+                        parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
+                contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
             
             response = client.models.generate_content(
                 model=cfg.get("model") or "gemini-2.0-flash",
-                contents=contents
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=system_prompt)
             )
             text = response.text
 
         elif provider in ["openai", "groq"]:
             from openai import OpenAI
-            base_url = cfg.get("openai_url") or "https://api.openai.com/v1"
-            client = OpenAI(api_key=cfg.get("openai_key"), base_url=base_url)
+            is_groq = (provider == "groq")
+            b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
+            api_key = cfg.get("openai_key")
             
-            # OpenAI message format adaptation
-            oa_messages = []
+            if not api_key: return JSONResponse(status_code=400, content={"error": f"Falta la API Key para {provider.upper()}"})
+            
+            client = OpenAI(api_key=api_key, base_url=b_url)
+            
+            # Message adaptation for Vision-capable models
+            oa_messages = [{"role": "system", "content": system_prompt}]
             for m in messages:
                 content = []
                 for c in m['content']:
                     if c['type'] == 'text':
                         content.append({"type": "text", "text": c['text']})
                     elif c['type'] == 'image':
-                        # OpenAI expects image_url
-                        data = c['source']['data']
-                        mtype = c['source']['media_type']
-                        content.append({
-                            "type": "image_url", 
-                            "image_url": {"url": f"data:{mtype};base64,{data}"}
-                        })
-                    # Note: Legacy OpenAI doesn't support PDF directly via Chat API easily without Assistants
+                        content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
                 oa_messages.append({"role": m['role'], "content": content})
             
+            default_model = "llama-3.2-90b-vision-preview" if is_groq else "gpt-4o"
             response = client.chat.completions.create(
-                model=cfg.get("model") or ("gpt-4o" if provider == "openai" else "llama-3.3-70b-versatile"),
+                model=cfg.get("model") or default_model,
                 messages=oa_messages,
-                max_tokens=4096
+                max_tokens=4096,
+                response_format={"type": "json_object"} if not is_groq else None 
             )
             text = response.choices[0].message.content
         else:
-            return JSONResponse(status_code=400, content={"error": f"Unsupported provider: {provider}"})
+            return JSONResponse(status_code=400, content={"error": f"Proveedor no soportado: {provider}"})
 
         return JSONResponse(status_code=200, content={"text": text, "provider": provider})
 
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
+        err_str = str(e)
+        if "429" in err_str:
+            return JSONResponse(status_code=429, content={"error": "Límite de peticiones alcanzado. Espera un minuto o cambia a GROQ (gratis y rápido)."})
+        return JSONResponse(status_code=500, content={"error": err_str, "traceback": traceback.format_exc()})
 
 @app.post("/api/claude")
 async def legacy_claude(body: dict = Body(...)): return await extract_invoice(body)
