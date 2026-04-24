@@ -230,17 +230,28 @@ async function initApp(){
 
 function uiTogIA(){
   const p = $('cfg_provider').value;
-  document.querySelectorAll('.ia-fields').forEach(el => el.style.display = 'none');
-  $('ia_' + (p === 'groq' ? 'openai' : p)).style.display = 'block';
+  const fields = document.querySelectorAll('.ia-fields');
+  fields.forEach(el => el.style.display = 'none');
   
-  // Update placeholder with recommended default
+  if(p === 'auto') {
+    // En modo Auto, mostramos todos los campos de llaves para que el usuario pueda configurarlas
+    fields.forEach(el => el.style.display = 'block');
+  } else {
+    const targetId = 'ia_' + (p === 'groq' ? 'openai' : p);
+    const target = $(targetId);
+    if(target) target.style.display = 'block';
+  }
+  
   const mod = $('cfg_model');
-  let d = '';
-  if(p==='anthropic') d = 'claude-3-5-sonnet-latest';
-  else if(p==='google') d = 'gemini-2.0-flash';
-  else if(p==='openai') d = 'gpt-4o';
-  else if(p==='groq') d = 'llama-3.3-70b-versatile';
-  mod.placeholder = 'Auto (' + d + ')';
+  if(mod) {
+    let d = 'Recomendado';
+    if(p==='anthropic') d = 'claude-3-5-sonnet-latest';
+    else if(p==='google') d = 'gemini-2.0-flash';
+    else if(p==='openai') d = 'gpt-4o-mini';
+    else if(p==='groq') d = 'llama-3.3-70b-versatile';
+    else if(p==='auto') d = 'Selección inteligente';
+    mod.placeholder = 'Auto (' + d + ')';
+  }
 }
 
 // ════════════════════════════════════════════
