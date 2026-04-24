@@ -189,14 +189,14 @@
         .com-item.active { border-color:var(--primary); background:var(--primary-bg); color:var(--primary); }
 
         /* ── TRASH BUTTON ── */
-        .btn-trash {
+        .btn-trash-circle {
             background:var(--red-bg); color:var(--red); border:1px solid #fecaca;
             width:34px; height:34px; border-radius:50%;
             display:flex; align-items:center; justify-content:center;
             cursor:pointer; transition:all .15s; flex-shrink:0;
         }
-        .btn-trash:hover { background:var(--red); color:white; border-color:var(--red); transform:scale(1.1); }
-        .btn-trash svg { width:15px; height:15px; }
+        .btn-trash-circle:hover { background:var(--red); color:white; border-color:var(--red); transform:scale(1.1); }
+        .btn-trash-circle svg { width:15px; height:15px; }
 
         /* ── SNACKBAR ── */
         #sb {
@@ -351,6 +351,13 @@
                     <div class="fld"><label class="fld-label">Bono Social (€)</label><input type="number" id="f_bon" class="form-input"></div>
                     <div class="fld"><label class="fld-label">Servicio / Otros (€)</label><input type="number" id="f_ser" class="form-input"></div>
                     <div class="fld"><label class="fld-label">Dirección</label><input id="f_dir" class="form-input"></div>
+                </div>
+                <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--slate-100)">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+                        <div class="fld-label">Conceptos extra (IEE)</div>
+                        <button class="btn-logout" onclick="addIeeExtra()" style="border-color:var(--primary); color:var(--primary)">+ Añadir Concepto</button>
+                    </div>
+                    <div id="ieeExtras"></div>
                 </div>
             </div>
             <div style="display:none"><input id="f_cp"></div>

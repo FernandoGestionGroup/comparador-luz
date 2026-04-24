@@ -372,6 +372,7 @@ async function extract(){
 }
 
 function fillForm(d){
+  clearIeeExtras();
   const set=(id,v)=>{ const el=$(id); if(el) el.value=v||''; };
   set('f_cli',d.cliente); set('f_cups',d.cups); set('f_com',d.comercializadora); set('f_dir',d.direccion); set('f_cp',d.cp); set('f_pot',d.potencia_kw); set('f_dias',d.dias); set('f_fi',d.fecha_inicio); set('f_tot',d.total_factura); set('f_iva',d.iva_pct); set('f_iee',d.iee_pct); set('f_iee_act',d.iee_act); set('f_iva_act',d.iva_act); set('f_dto_en_act',d.dto_energia_act_pct); set('f_rea',d.reactiva); set('f_exc',d.exceso_potencia); set('f_alq',d.alquiler_equipos); set('f_bon',d.bono_social); set('f_ser',d.servicio);
   if(d.tiene_autoconsumo){ $('f_tiene_autocon').checked=true; $('autoconFields').style.display='block'; set('f_aut_kwh',d.autoconsumo_kwh); set('f_aut_precio',d.autoconsumo_precio_kwh); set('f_aut_total',d.autoconsumo_total); }
@@ -379,22 +380,79 @@ function fillForm(d){
   updTar();
 }
 
+let ieeExtraCount=0;
+function addIeeExtra(nombre,importe,mantiene){
+  nombre=nombre||''; importe=importe||0; mantiene=mantiene||false;
+  const id='iee_'+Date.now()+'_'+(ieeExtraCount++);
+  const div=document.createElement('div');
+  div.id=id; div.style.cssText='display:grid;grid-template-columns:1fr 110px auto auto;gap:8px;align-items:center;margin-bottom:7px';
+  const i1=document.createElement('input'); i1.type='text'; i1.placeholder='Ej: Ajust Restriccions / SA de REE'; i1.value=nombre; i1.className='form-input'; i1.style.fontSize='12px';
+  const i2=document.createElement('input'); i2.type='number'; i2.step='.01'; i2.placeholder='€'; i2.value=importe||''; i2.className='form-input'; i2.style.fontSize='12px'; i2.style.textAlign='right';
+  const lbl=document.createElement('label'); lbl.style.cssText='display:flex;align-items:center;gap:5px;font-size:10px;color:var(--slate-500);cursor:pointer;white-space:nowrap';
+  const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=mantiene; chk.style.accentColor='var(--primary)';
+  lbl.appendChild(chk); lbl.appendChild(document.createTextNode(' En nueva'));
+  const btn=document.createElement('button'); btn.className='btn-trash-circle'; btn.innerHTML='<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>'; btn.onclick=function(){document.getElementById(id).remove();};
+  div.appendChild(i1); div.appendChild(i2); div.appendChild(lbl); div.appendChild(btn);
+  $('ieeExtras').appendChild(div);
+}
+function clearIeeExtras(){ if($('ieeExtras')) $('ieeExtras').innerHTML=''; ieeExtraCount=0;}
+
+function getIeeExtras(){
+  if(!$('ieeExtras')) return [];
+  return Array.from($('ieeExtras').querySelectorAll('div[id^="iee_"]')).map(function(row){
+    const inp=row.querySelectorAll('input');
+    return {nombre:inp[0].value, importe:n(inp[1].value), mantiene:inp[2].checked};
+  }).filter(function(r){return r.importe>0;});
+}
+
 function getForm(){
   const potArr=[], enArr=[], lecArr=[];
   document.querySelectorAll('.pot-row').forEach(tr=>{ potArr.push({per:tr.dataset.per, kw:n(tr.querySelector('.pk_in').value), importe:n(tr.querySelector('.pi_in').value)}); });
   document.querySelectorAll('.en-row').forEach(tr=>{ enArr.push({per:tr.dataset.per, kwh:n(tr.querySelector('.ek_in').value), precio:n(tr.querySelector('.ep_in').value)}); });
+  document.querySelectorAll('.lec-row').forEach(tr=>{ lecArr.push({per:tr.dataset.per, kwh:n(tr.querySelector('.lk_in').value)}); });
+  
+  const hasLecturas = lecArr.some(l=>l.kwh>0);
   const lecByPer = {}; PS.forEach(p=>{ lecByPer[p]=0; });
-  document.querySelectorAll('.lec-row').forEach(tr=>{ const k=n(tr.querySelector('.lk_in').value); lecByPer[tr.dataset.per]=k; });
-  return { cliente:$('f_cli').value, cups:$('f_cups').value, comercializadora:$('f_com').value, direccion:$('f_dir').value, cp:$('f_cp').value, potencia_kw:n($('f_pot').value), dias:n($('f_dias').value), total_factura:n($('f_tot').value), iva_pct:n($('f_iva').value)||21, iee_pct:n($('f_iee').value)||5.1, iva_act:n($('f_iva_act').value), iee_act:n($('f_iee_act').value), dto_en_act_pct:n($('f_dto_en_act').value), reactiva:n($('f_rea').value), exceso_potencia:n($('f_exc').value), alquiler_equipos:n($('f_alq').value), bono_social:n($('f_bon').value), servicio:n($('f_ser').value), tarifa:$('f_tar').value, consumo_anual:n($('f_consumo_anual').value), tiene_autoconsumo:$('f_tiene_autocon').checked, autoconsumo_kwh:n($('f_aut_kwh').value), autoconsumo_precio_kwh:n($('f_aut_precio').value), pot_p:potArr, en_p:enArr, lec_by_per:lecByPer };
+  if(hasLecturas){ lecArr.forEach(l=>{ if(lecByPer[l.per]!==undefined) lecByPer[l.per]+=l.kwh; }); }
+  else { enArr.forEach(l=>{ if(lecByPer[l.per]!==undefined) lecByPer[l.per]+=l.kwh; }); }
+  
+  const tieneAuto=$('f_tiene_autocon').checked;
+  return {
+    cliente:$('f_cli').value, cups:$('f_cups').value,
+    comercializadora:$('f_com').value, direccion:$('f_dir').value, cp:$('f_cp').value,
+    potencia_kw:n($('f_pot').value), dias:n($('f_dias').value),
+    fecha_inicio:$('f_fi').value, total_factura:n($('f_tot').value),
+    iva_pct:n($('f_iva').value)||21, iee_pct:n($('f_iee').value)||5.1126963,
+    iee_act:n($('f_iee_act').value), iva_act:n($('f_iva_act').value),
+    dto_en_act_pct:n($('f_dto_en_act').value),
+    reactiva:n($('f_rea').value), exceso_potencia:n($('f_exc').value),
+    alquiler_equipos:n($('f_alq').value), bono_social:n($('f_bon').value), servicio:n($('f_ser').value),
+    tarifa:$('f_tar').value||'2.0TD',
+    consumo_anual:n($('f_consumo_anual').value),
+    tiene_autoconsumo:tieneAuto, autoconsumo_kwh:n($('f_aut_kwh').value), autoconsumo_precio_kwh:n($('f_aut_precio').value),
+    pot_p:potArr, en_p:enArr, lec_p:lecArr, lec_by_per:lecByPer, has_lecturas:hasLecturas,
+    iee_extras:getIeeExtras()
+  };
 }
 
 function renderCmp(){
-  const d=getForm(); 
-  const res=ST.ofertas.map(o => {
+  const d=getForm();
+  const servSum = d.servicio || 0;
+  const baseIVAAct = (d.total_factura - d.iva_act) + servSum;
+  const ivaActCalc = d.iva_act + (servSum * (d.iva_pct/100));
+  const calcTotalAct = baseIVAAct + ivaActCalc;
+
+  const res=ST.ofertas.filter(o => {
+    if(o.tarifa!=='todas' && o.tarifa!==d.tarifa) return false;
+    const pot=d.potencia_kw;
+    if(pot<(o.pot_min||0) || pot>(o.pot_max||9999)) return false;
+    return true;
+  }).map(o => {
     const c = calcOfr(d, o);
-    return Object.assign({}, o, c);
+    const ahorro=calcTotalAct-c.total;
+    return Object.assign({}, o, c, {ahorro});
   });
-  res.sort((a,b) => a.total - b.total); 
+  res.sort((a,b) => b.comision - a.comision || a.total - b.total); 
   ST._res = res;
   
   $('rankDiv').innerHTML = res.map(r => `
@@ -405,10 +463,51 @@ function renderCmp(){
   `).join('');
 }
 
+function calcComision(oferta, d){
+  const pot = d.potencia_kw || 0;
+  const consumo = d.consumo_anual || 0;
+  const regla = ST.comisiones.find(c => clean(c.comercializadora) === clean(oferta.comercializadora));
+  if(regla && regla.tramos && regla.tramos.length){
+    const tramo = regla.tramos.find(t => {
+      const matchPot = pot >= t.p_min && pot < t.p_max;
+      const matchCons = consumo >= t.c_min && consumo < t.c_max;
+      const matchName = !t.filtro || clean(oferta.nombre).includes(clean(t.filtro));
+      return matchPot && matchCons && matchName;
+    });
+    if(tramo){
+      if(tramo.tipo === 'variable') return tramo.valor * (consumo / 1000);
+      return tramo.valor * (d.dias/365); 
+    }
+  }
+  return (oferta.comision||0) * (d.dias/365);
+}
+
 function calcOfr(d, o){
-  const simByPer = d.lec_by_per || {}; let tPot=0, tEn=0;
-  PS.forEach(p=>{ const pp=o['pp_'+p.toLowerCase()]||0; tPot+=d.potencia_kw*pp*d.dias; const ep=o['ep_'+p.toLowerCase()]||0; tEn+=(simByPer[p]||0)*ep; });
-  const total=tPot+tEn; return {total, comision:100}; // Simplified
+  const simByPer = d.lec_by_per || {};
+  const totalKwh = PS.reduce((s,p)=>s+(simByPer[p]||0), 0);
+  let tPot=0;
+  PS.forEach(p=>{
+    const ppNva=o['pp_'+p.toLowerCase()]||0;
+    if(ppNva>0) tPot+=d.potencia_kw*ppNva*d.dias;
+  });
+  tPot*=(1-(o.dto_potencia||0)/100);
+  let tEn=0;
+  PS.forEach((p,i)=>{
+    const kwh=simByPer[p]||0;
+    const precio=o['ep_'+p.toLowerCase()]||0;
+    const dto=o.dto_energia_por_periodo?(o['dto_e_p'+(i+1)]||0)/100:(o.dto_energia_global||0)/100;
+    tEn+=kwh*precio*(1-dto);
+  });
+  const compNva=d.tiene_autoconsumo?(d.autoconsumo_kwh||0)*(o.compensacion||0):0;
+  const rea=d.reactiva, exc=d.exceso_potencia, alq=d.alquiler_equipos, bon=d.bono_social;
+  const extrasIEE=(d.iee_extras||[]).filter(e=>e.mantiene).reduce((s,e)=>s+e.importe,0);
+  const baseIEE=tPot+tEn+rea+exc+bon+extrasIEE-compNva;
+  const iee=baseIEE*(d.iee_pct/100);
+  const baseIVA=baseIEE+iee+alq;
+  const iva=baseIVA*(d.iva_pct/100);
+  const total=baseIVA+iva;
+  const comision=calcComision(o,d);
+  return {tPot,tEn,compNva,iee,baseIEE,baseIVA,iva,total,comision,totalKwh};
 }
 
 function selOfr(id){
@@ -417,9 +516,99 @@ function selOfr(id){
     <div style="text-align:center;padding:20px 0">
       <div style="font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;color:var(--slate-900);margin-bottom:8px">${r.nombre}</div>
       <div style="font-family:'Outfit',sans-serif;font-size:32px;font-weight:800;color:var(--primary)">${r.total.toFixed(2)} €</div>
-      <div style="font-size:12px;color:var(--slate-400);margin-top:12px">Factura estimada mensual</div>
+      <div style="font-size:12px;color:var(--slate-400);margin-top:12px;margin-bottom:32px">Factura estimada mensual</div>
+      <button class="btn-action primary" onclick="genPDF()" style="width:100%;justify-content:center">
+        📄 Generar PDF para comercial
+      </button>
     </div>
   `;
+}
+
+function genPDF(){
+  if(!ST.sel){alert('Selecciona una oferta primero');return;}
+  const d=getForm(), r=ST.sel;
+  const asesor=($('g_asesor')?.value||'').trim();
+  const fechaProp=$('g_fecha')?.value||new Date().toISOString().split('T')[0];
+  const validezDias=r.validez||7;
+  const fechaFmt=function(iso){if(!iso)return'';const p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0];};
+  const fmt=function(v){return v===0?'— €':v.toFixed(2)+' €';};
+  const fmtP=function(v){return v===0?'—':v.toFixed(5);};
+  const servSum=d.servicio||0;
+  const baseIVAAct=(d.total_factura-d.iva_act)+servSum;
+  const ivaActCalc=d.iva_act+(servSum*(d.iva_pct/100));
+  const calcTotalAct=baseIVAAct+ivaActCalc;
+  const ahorroEur=calcTotalAct-r.total;
+  const ahorroPct=calcTotalAct>0?(ahorroEur/calcTotalAct*100):0;
+  const ahorroAnual=d.dias>0?(ahorroEur/d.dias*365):0;
+  const tPotAct=d.pot_p.reduce((s,l)=>s+l.importe,0);
+  const dtoActPct=d.dto_en_act_pct||0;
+  const ieeAct=d.iee_act||0, ivaAct=ivaActCalc;
+  const dtoEnNvaPct=r.dto_energia_por_periodo?0:(r.dto_energia_global||0);
+  let tEnNvaBase=0, tEnActBase=0;
+  let rowsPot='', rowsEn='';
+  PS.forEach(p=>{
+    const pLines = d.pot_p.filter(x=>x.per===p);
+    const kwNva = pLines.length>0 ? Math.max(...pLines.map(x=>x.kw)) : 0;
+    let ppNva = r['pp_'+p.toLowerCase()]||0;
+    if(d.tarifa.startsWith('2.0') && p==='P3' && !ppNva) ppNva=r.pp_p2||0;
+    const impNva = kwNva * ppNva * d.dias;
+    if(pLines.length===0){ rowsPot+='<tr><td class="per">'+p+'</td><td class="num">—</td><td class="num">—</td><td class="num bold">— €</td><td class="sep"></td><td class="num">—</td><td class="num">'+fmtP(ppNva)+'</td><td class="num bold nva">— €</td></tr>'; } 
+    else { pLines.forEach((l,i)=>{ const precioAct = (l.kw>0 && d.dias>0) ? l.importe/(l.kw*d.dias) : 0; rowsPot+='<tr><td class="per">'+(i===0?p:'')+'</td><td class="num">'+(l.kw>0?l.kw.toLocaleString('es-ES',{minimumFractionDigits:3}):'—')+'</td><td class="num">'+fmtP(precioAct)+'</td><td class="num bold">'+(l.importe>0?fmt(l.importe):'— €')+'</td><td class="sep"></td><td class="num">'+(i===0&&kwNva>0?kwNva.toLocaleString('es-ES',{minimumFractionDigits:3}):'')+'</td><td class="num">'+(i===0?fmtP(ppNva):'')+'</td><td class="num bold nva">'+(i===0&&(impNva>0)?fmt(impNva):'')+'</td></tr>'; }); }
+  });
+  const simByPer = d.lec_by_per || {};
+  PS.forEach((p,idx)=>{
+    const eLines = d.en_p.filter(x=>x.per===p);
+    const dtoP=r.dto_energia_por_periodo?(r['dto_e_p'+(idx+1)]||0)/100:dtoEnNvaPct/100;
+    const epNva=r['ep_'+p.toLowerCase()]||0;
+    const kwhSim = simByPer[p]||0;
+    const impNvaSim = kwhSim*epNva*(1-dtoP);
+    tEnNvaBase += kwhSim*epNva;
+    if(eLines.length===0 && kwhSim===0){ rowsEn+='<tr><td class="per">'+p+'</td><td class="num">—</td><td class="num">—</td><td class="num bold">— €</td><td class="sep"></td><td class="num">—</td><td class="num">'+fmtP(epNva)+'</td><td class="num bold nva">— €</td></tr>'; } 
+    else if(eLines.length===0 && kwhSim>0){ rowsEn+='<tr><td class="per">'+p+'</td><td class="num">—</td><td class="num">—</td><td class="num bold">— €</td><td class="sep"></td><td class="num">'+kwhSim.toLocaleString('es-ES',{minimumFractionDigits:3})+'</td><td class="num">'+fmtP(epNva)+'</td><td class="num bold nva">'+(impNvaSim>0?fmt(impNvaSim):'— €')+'</td></tr>'; } 
+    else { eLines.forEach((l,i)=>{ const impAB=l.kwh*l.precio; tEnActBase+=impAB; rowsEn+='<tr><td class="per">'+(i===0?p:'')+'</td><td class="num">'+(l.kwh>0?l.kwh.toLocaleString('es-ES',{minimumFractionDigits:3}):'—')+'</td><td class="num">'+(l.precio>0?fmtP(l.precio):'—')+'</td><td class="num bold">'+(impAB>0?fmt(impAB):'— €')+'</td><td class="sep"></td>'+(i===0?'<td class="num">'+(kwhSim>0?kwhSim.toLocaleString('es-ES',{minimumFractionDigits:3}):'—')+'</td><td class="num">'+(epNva>0?fmtP(epNva):'—')+'</td><td class="num bold nva">'+(impNvaSim>0?fmt(impNvaSim):'— €')+'</td>':'<td class="num" style="background:#f0fafb"></td><td class="num" style="background:#f0fafb"></td><td class="num bold nva"></td>')+'</tr>'; }); }
+  });
+  const dtoActEur=tEnActBase*(dtoActPct/100);
+  let rowsExtras='';
+  if((d.iee_extras||[]).length>0){ rowsExtras+='<tr><td colspan="8" class="sec-hdr">OTROS CONCEPTOS</td></tr>'; d.iee_extras.forEach(function(e){rowsExtras+='<tr><td colspan="3" style="padding:4px 8px;border-bottom:1px solid #e5e7eb">'+e.nombre+'</td><td class="num bold">'+fmt(e.importe)+'</td><td class="sep"></td><td colspan="2"></td><td class="num bold nva">'+(e.mantiene?fmt(e.importe):'— €')+'</td></tr>';}); }
+  const autActEur=d.tiene_autoconsumo?(d.autoconsumo_kwh||0)*(d.autoconsumo_precio_kwh||0):0;
+  const autNvaEur=r.compNva||0;
+  const logoSVG='<svg width="110" height="52" viewBox="0 0 110 52" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="13" r="12" fill="#3d4044"/><text x="14" y="18" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">G</text><circle cx="14" cy="39" r="12" fill="#2cb5ad"/><text x="14" y="44" text-anchor="middle" fill="white" font-size="10" font-family="Arial" font-weight="bold">G</text><text x="32" y="18" font-family="Arial" font-size="12" font-weight="900" fill="#3d4044">GESTION</text><text x="32" y="33" font-family="Arial" font-size="12" font-weight="900" fill="#3d4044">GROUP</text><text x="32" y="48" font-family="Arial" font-size="6.5" fill="#2cb5ad" letter-spacing="2">SOLUCIONES ENERGÉTICAS</text></svg>';
+  const w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10.5px;color:#2d3138;padding:16px 20px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-bottom:9px;border-bottom:3px solid #2cb5ad}.hdr-right{text-align:right;font-size:9.5px;color:#6b7280;line-height:1.6}.hdr-right b{font-size:11px;color:#2d3138}.offer-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:#f0fafb;border:1px solid #b2e0de;border-radius:6px;padding:7px 10px;margin-bottom:9px;font-size:9.5px}.offer-bar .lbl{color:#6b7280;margin-bottom:1px}.offer-bar .val{font-weight:800;font-size:10.5px}.offer-bar .val.teal{color:#2cb5ad}table{width:100%;border-collapse:collapse;font-size:9.5px}.th-act{background:#3d4044;color:#fff;padding:4px 7px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center}.th-nva{background:#2cb5ad;color:#fff;padding:4px 7px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center}.sec-hdr{background:#f3f4f6;color:#3d4044;padding:4px 7px;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e5e7eb}.col-hdr{background:#f9fafb;color:#374151;padding:3px 7px;font-size:8.5px;font-weight:600;text-align:center;border-bottom:1px solid #e5e7eb}.per{padding:3px 7px;border-bottom:1px solid #f3f4f6;color:#2cb5ad;font-weight:700;width:26px;text-align:center}.num{padding:3px 7px;border-bottom:1px solid #f3f4f6;text-align:right}.num.bold{font-weight:700}.num.nva{background:#f0fafb}.sep{width:5px;background:#e5e7eb;padding:0}.dto-row td{padding:2px 7px;border-bottom:1px solid #e5e7eb;font-size:8.5px;color:#6b7280;font-style:italic}.dto-row .red{color:#dc2626;font-style:normal}.tot-row td{background:#f9fafb;font-weight:700;font-size:10.5px;padding:4px 7px;border-top:2px solid #d1d5db;border-bottom:1px solid #e5e7eb}.tot-row .nva{background:#e6f7f6;color:#1a7a75}.ext-row td{padding:3px 7px;border-bottom:1px solid #f3f4f6}.ext-row .nva{background:#f0fafb}.ahorro{background:linear-gradient(135deg,#e6f7f6,#d1f0ee);border:2px solid #2cb5ad;border-radius:7px;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;margin:10px 0}.ahorro-lbl{font-weight:800;color:#1a7a75;font-size:11px}.ahorro-sub{font-size:9.5px;color:#2cb5ad;margin-top:2px}.ahorro-val .eur{font-size:22px;font-weight:900;color:#1a7a75;text-align:right}.ahorro-val .pct{font-size:13px;font-weight:700;color:#2cb5ad;text-align:right}.it{width:100%;border-collapse:collapse;margin-bottom:9px}.it th{background:#f3f4f6;padding:4px 9px;font-size:8.5px;font-weight:700;text-align:left;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e5e7eb}.it td{padding:4px 9px;border-bottom:1px solid #f3f4f6;font-size:10px}.footer-bar{display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px;padding-top:8px;border-top:2px solid #2cb5ad}.asesor-box{background:#f0fafb;border:1px solid #b2e0de;border-radius:6px;padding:7px 14px}.asesor-lbl{font-size:8px;color:#6b7280;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}.asesor-name{font-size:12px;font-weight:800;color:#2d3138}.foot-legal{font-size:8px;color:#9ca3af;max-width:400px;line-height:1.5;text-align:right}@media print{body{padding:8px 12px}@page{margin:7mm}}</style></head><body>'
+  +'<div class="hdr"><div><div style="margin-bottom:5px">'+logoSVG+'</div><div style="font-size:16px;font-weight:900;color:#2d3138;letter-spacing:-.3px">'+t('ESTUDIO COMPARATIVO ENERGÉTICO')+'</div><div style="font-size:9px;color:#6b7280;margin-top:2px">'+t('Preparado el')+' '+fechaFmt(fechaProp)+' · ' + t('Válido') + ' '+validezDias+' '+t('días')+'</div></div>'
+  +'<div class="hdr-right"><b>'+( d.cliente||'' )+'</b><br>'+(d.cups||'')+'<br>'+(d.direccion?d.direccion+(d.cp?', '+d.cp:''):'')+'<br>'+t('Tarifa')+' '+d.tarifa+' · '+d.potencia_kw+' '+t('kW')+' · '+d.dias+' '+t('días')+'</div></div>'
+  +'<div class="offer-bar"><div><div class="lbl">'+t('COMERCIALIZADORA ACTUAL')+'</div><div class="val">'+(d.comercializadora||'—')+'</div></div><div><div class="lbl">'+t('OFERTA')+'</div><div class="val teal">'+r.nombre+'</div></div><div><div class="lbl">'+t('PERMANENCIA')+'</div><div class="val">'+(r.permanencia||t('Sin permanencia'))+'</div></div><div><div class="lbl">'+t('TIPO')+'</div><div class="val">'+t(r.tipo)+'</div></div></div>'
+  +'<table><thead><tr><td colspan="4" class="th-act" style="text-align:center">'+t('FACTURACIÓN ACTUAL')+' · '+(d.comercializadora||'')+'</td><td class="sep"></td><td colspan="3" class="th-nva" style="text-align:center">'+t('NUEVA FACTURACIÓN')+' · '+r.nombre+' · '+r.comercializadora+'</td></tr>'
+  +'<tr><td colspan="8" class="sec-hdr">'+t('T. FIJO — POTENCIA')+'</td></tr>'
+  +'<tr><th class="col-hdr" style="width:26px">'+t('PER.')+'</th><th class="col-hdr">'+t('kW')+'</th><th class="col-hdr">'+t('€/kW·día')+'</th><th class="col-hdr">'+t('TOTALES')+'</th><td class="sep"></td><th class="col-hdr">'+t('kW')+'</th><th class="col-hdr">'+t('€/kW·día')+'</th><th class="col-hdr" style="background:#e6f7f6">'+t('TOTALES')+'</th></tr></thead>'
+  +'<tbody>'+rowsPot
+  +'<tr class="dto-row"><td colspan="3">'+t('DTO.')+' '+((r.dto_potencia||0)>0?(r.dto_potencia).toFixed(0)+'%':'0%')+'</td><td class="num">— €</td><td class="sep"></td><td colspan="2">'+t('DTO.')+' '+((r.dto_potencia||0)>0?(r.dto_potencia).toFixed(0)+'%':'0%')+'</td><td class="num nva">'+((r.dto_potencia||0)>0?'- '+fmt(tPotAct*(r.dto_potencia/100)):'— €')+'</td></tr>'
+  +'<tr class="tot-row"><td colspan="3">'+t('TOTAL POTENCIA')+'</td><td class="num">'+fmt(tPotAct)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">'+fmt(r.tPot)+'</td></tr>'
+  +'<tr><td colspan="8" class="sec-hdr">'+t('T. VARIABLE — ENERGÍA')+'</td></tr>'
+  +'<tr><th class="col-hdr">'+t('PER.')+'</th><th class="col-hdr">'+t('kWh')+'</th><th class="col-hdr">'+t('€/kWh')+'</th><th class="col-hdr">'+t('TOTALES')+'</th><td class="sep"></td><th class="col-hdr">'+t('kWh')+'</th><th class="col-hdr">'+t('€/kWh')+'</th><th class="col-hdr" style="background:#e6f7f6">'+t('TOTALES')+'</th></tr>'
+  +rowsEn
+  +'<tr class="dto-row"><td colspan="3">'+t('DTO.')+' '+(dtoActPct>0?dtoActPct.toFixed(0)+'%':'')+'</td><td class="num red">'+(dtoActEur>0?'- '+fmt(dtoActEur):'— €')+'</td><td class="sep"></td><td colspan="2">'+t('DTO.')+' '+(dtoEnNvaPct>0?dtoEnNvaPct.toFixed(0)+'%':'')+'</td><td class="num nva red">'+(dtoNvaEur>0?'- '+fmt(dtoNvaEur):'— €')+'</td></tr>'
+  +'<tr class="tot-row"><td colspan="3">'+t('TOTAL ENERGÍA')+'</td><td class="num">'+fmt(tEnActNeto)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">'+fmt(r.tEn)+'</td></tr>'
+  +rowsExtras
+  +'<tr><td colspan="8" class="sec-hdr">'+t('IMPUESTOS Y OTROS')+'</td></tr>'
+  +(d.tiene_autoconsumo?'<tr class="ext-row"><td colspan="3" style="padding:3px 7px">'+t('Compensación Autoconsumo')+' ('+d.autoconsumo_kwh+' '+t('kWh')+')</td><td class="num bold" style="color:#16a34a">-'+fmt(autActEur)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva" style="color:#16a34a">-'+fmt(autNvaEur)+'</td></tr>':'')
+  +(d.reactiva>0?'<tr class="ext-row"><td colspan="3" style="padding:3px 7px">'+t('Energía Reactiva')+'</td><td class="num bold">'+fmt(d.reactiva)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">— €</td></tr>':'')
+  +(d.alquiler_equipos>0?'<tr class="ext-row"><td colspan="3" style="padding:3px 7px">'+t('Alquiler Equipos')+'</td><td class="num bold">'+fmt(d.alquiler_equipos)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">'+fmt(d.alquiler_equipos)+'</td></tr>':'')
+  +'<tr class="ext-row"><td colspan="3" style="padding:3px 7px">'+t('Imp. Electricidad (IEE)')+' '+d.iee_pct+'%</td><td class="num bold">'+fmt(ieeAct)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">'+fmt(r.iee)+'</td></tr>'
+  +(d.bono_social>0?'<tr class="ext-row"><td colspan="3" style="padding:3px 7px">'+t('Financiación Bono Social')+'</td><td class="num bold">'+fmt(d.bono_social)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">'+fmt(d.bono_social)+'</td></tr>':'')
+  +(d.servicio>0?'<tr class="ext-row"><td colspan="3" style="padding:3px 7px">'+t('Servicios')+'</td><td class="num bold">'+fmt(d.servicio)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">— €</td></tr>':'')
+  +'<tr class="ext-row" style="border-top:1px solid #d1d5db"><td colspan="3" style="padding:3px 7px;color:#9ca3af;font-size:8.5px">'+t('Base Imponible')+'</td><td class="num" style="color:#9ca3af;font-size:8.5px">'+fmt(baseIVAAct)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva" style="color:#9ca3af;font-size:8.5px">'+fmt(r.baseIVA)+'</td></tr>'
+  +'<tr class="ext-row"><td colspan="3" style="padding:3px 7px">'+t('IVA')+' ('+d.iva_pct+'%)</td><td class="num bold">'+fmt(ivaAct)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva">'+fmt(r.iva)+'</td></tr>'
+  +'<tr class="tot-row"><td colspan="3" style="font-size:12px">'+t('TOTAL')+'</td><td class="num" style="font-size:13px">'+fmt(calcTotalAct)+'</td><td class="sep"></td><td colspan="2"></td><td class="num nva" style="font-size:13px;color:#1a7a75">'+fmt(r.total)+'</td></tr>'
+  +'</tbody></table>'
+  +'<div class="ahorro"><div><div class="ahorro-lbl">'+t('AHORRO ESTIMADO EN FACTURA')+'</div><div class="ahorro-sub">'+t('Ahorro anual estimado')+': '+ahorroAnual.toFixed(0)+' '+t('€/año')+'</div></div>'
+  +'<div class="ahorro-val"><div class="eur">'+(ahorroEur>=0?'+':'')+fmt(ahorroEur)+'</div><div class="pct">'+(ahorroEur>=0?'+':'')+ahorroPct.toFixed(2)+' %</div></div></div>'
+  +'<table class="it"><thead><tr><th>'+t('COMERCIALIZADORA')+'</th><th>'+t('TARIFA')+'</th><th>'+t('TIPO PRECIO')+'</th><th>'+t('PERMANENCIA')+'</th><th>'+t('VALIDEZ')+'</th></tr></thead>'
+  +'<tbody><tr><td>'+r.comercializadora+'</td><td>'+r.tarifa+'</td><td>'+t(r.tipo)+'</td><td>'+(r.permanencia||t('Sin permanencia'))+'</td><td>'+validezDias+' '+t('días')+'</td></tr></tbody></table>'
+  +'<div class="footer-bar"><div class="asesor-box"><div class="asesor-lbl">'+t('Nombre del Asesor')+'</div><div class="asesor-name">'+(asesor||'_________________________')+'</div></div>'
+  +'<div class="foot-legal">'+t('Los precios de potencia y energía incluyen todos los PEAJES/ATR.')+'<br>'+t('Cálculos de carácter informativo no vinculantes.')+'<br>'+t('Fecha propuesta')+': '+fechaFmt(fechaProp)+'</div></div>'
+  +'</body></html>');
+  w.document.close(); setTimeout(function(){w.print();},700);
 }
 
 function renderOfrList(){ 
