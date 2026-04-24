@@ -165,8 +165,8 @@ async function initApp(){
   $('ui_nombre').textContent = ST.user.nombre;
   $('ui_role').textContent = ST.user.role==='admin' ? 'Admin' : 'Comercial';
   const isAdmin = ST.user.role === 'admin';
-  $('tab-ofr').style.display = isAdmin ? '' : 'none';
-  $('tab-com').style.display = isAdmin ? '' : 'none';
+  if($('tab-ofr')) $('tab-ofr').style.display = isAdmin ? '' : 'none';
+  if($('tab-com')) $('tab-com').style.display = isAdmin ? '' : 'none';
   await Promise.all([loadConfig(), loadOfertas(), loadUsuarios(), loadComisiones()]);
   $('cfg_provider').value = ST.config.provider || 'anthropic';
   $('cfg_model').value = ST.config.model || '';
@@ -266,9 +266,10 @@ function addComTramo(t){
 }
 
 function go(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  $('p-'+id).classList.add('on'); $('tab-'+id)?.classList.add('on');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  if($('p-'+id)) $('p-'+id).classList.add('active');
+  if($('tab-'+id)) $('tab-'+id).classList.add('active');
   if(id==='cmp'){ loadOfertas().then(()=>renderCmp()); }
   if(id==='ofr'){ loadOfertas().then(()=>renderOfrList()); }
   if(id==='com'){ renderComList(); }
@@ -319,8 +320,11 @@ function onFiles(flist){
       $('chips').innerHTML+='<span class="chip">'+(file.type.includes('pdf')?'📄':'🖼️')+' '+file.name+'</span>';
       if(++loaded===files.length){
         const img=ST.files.find(f=>!f.type.includes('pdf'));
-        if(img){$('prevImg').src=img.src;$('prevImg').style.display='block';} else $('prevImg').style.display='none';
-        $('prevSec').style.display='block'; $('upzone').style.borderColor='var(--acc)';
+        if(img && $('prevImg')){$('prevImg').src=img.src;$('prevImg').style.display='block';} 
+        else if($('prevImg')) $('prevImg').style.display='none';
+        
+        if($('prevSec')) $('prevSec').style.display='block';
+        if($('upzone')) $('upzone').style.borderColor='var(--primary)';
       }
     };
     r.readAsDataURL(file);
