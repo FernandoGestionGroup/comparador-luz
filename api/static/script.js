@@ -173,9 +173,24 @@ async function initApp(){
   $('cfg_model').value = ST.config.model || '';
   $('cfg_openaiurl').value = ST.config.openai_url || 'https://api.openai.com/v1';
   $('cfg_idioma').value = ST.config.idioma||'es';
+  
+  if(isAdmin) {
+    $('cfg_glo_iva').value = ST.config.glo_iva || 21;
+    $('cfg_glo_iee').value = ST.config.glo_iee || 5.1126963;
+  }
+  
+  $('cfg_prof_nombre').value = ST.user.nombre || '';
+  $('cfg_prof_email').value = ST.user.email || '';
+  
   uiTogIA();
-  $('g_asesor').value = localStorage.getItem('el_asesor')||'';
+  
+  $('g_asesor').value = ST.user.nombre || '';
   $('g_fecha').value = new Date().toISOString().split('T')[0];
+  
+  // Set default taxes from global config
+  $('f_iva').value = ST.config.glo_iva || 21;
+  $('f_iee').value = ST.config.glo_iee || 5.1126963;
+
   buildTbls(); renderUsersTable(); go('fac'); applyLang(document.body);
 }
 
@@ -202,6 +217,12 @@ async function saveConfig(){
   if(!confirm(t('¿Deseas guardar los cambios en la configuración?'))) return;
   const p = $('cfg_provider').value;
   ST.config.provider = p; ST.config.idioma = $('cfg_idioma').value; ST.config.model = $('cfg_model').value.trim();
+  
+  if(ST.user.role === 'admin') {
+    ST.config.glo_iva = n($('cfg_glo_iva').value) || 21;
+    ST.config.glo_iee = n($('cfg_glo_iee').value) || 5.1126963;
+  }
+  
   const key_anth = $('cfg_apikey').value.trim();
   const key_gem = $('cfg_geminikey').value.trim();
   const key_oa = $('cfg_openaikey').value.trim();
@@ -212,11 +233,36 @@ async function saveConfig(){
     ST.config.openai_url = $('cfg_openaiurl').value.trim();
     if(p==='groq' && !ST.config.openai_url) ST.config.openai_url = 'https://api.groq.com/openai/v1';
   }
+  
+  const n_nom = $('cfg_prof_nombre').value.trim();
+  const n_pas = $('cfg_prof_pass').value.trim();
+  if(n_nom && (n_nom !== ST.user.nombre || n_pas)) {
+    const payload = { action: 'update', id: ST.user.id, nombre: n_nom, email: ST.user.email, role: ST.user.role };
+    if(n_pas) payload.password = n_pas;
+    await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    ST.user.nombre = n_nom;
+    $('ui_nombre').textContent = ST.user.nombre;
+    $('g_asesor').value = ST.user.nombre;
+    $('cfg_prof_pass').value = '';
+  }
+
   await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.config)});
   if(key_anth) ST.config.has_api_key = true;
   if(key_gem) ST.config.has_gemini_key = true;
   if(key_oa) ST.config.has_openai_key = true;
-  sb('Configuración guardada ✓','ok'); applyLang();
+  
+  // Apply I18N globally
+  refreshUI();
+  sb('Configuración guardada ✓','ok');
+}
+
+function refreshUI() {
+  applyLang(document.body);
+  if($('ofrList').innerHTML !== '') renderOfrList();
+  if($('comList').innerHTML !== '') renderComList();
+  if($('cfg-users-content').innerHTML !== '') renderUsersTable();
+  if($('rankDiv').innerHTML !== '') renderCmp();
+  setTimeout(() => applyLang(document.body), 50);
 }
 
 function updCnt(){} // stub — offer count badge (optional)
@@ -802,7 +848,7 @@ function addComCo(){
 }
 
 function switchCfgTab(tabId){
-  ['int','ia','usr','dat'].forEach(id => {
+  ['int','glo','ia','usr','dat'].forEach(id => {
     const btn = $('cfgTab-'+id);
     const mod = $('cfgMod-'+id);
     if(btn) btn.className = btn.className.replace(' active','');
@@ -810,6 +856,7 @@ function switchCfgTab(tabId){
   });
   if($('cfgTab-'+tabId)) $('cfgTab-'+tabId).className += ' active';
   if($('cfgMod-'+tabId)) $('cfgMod-'+tabId).style.display = 'block';
+  setTimeout(() => applyLang(document.body), 50);
 }
 
 function exportData(){
@@ -832,7 +879,7 @@ function importData(files){
       if(parsed.ofertas && Array.isArray(parsed.ofertas)) ST.ofertas = parsed.ofertas;
       if(parsed.comisiones && Array.isArray(parsed.comisiones)) ST.comisiones = parsed.comisiones;
       await saveOfertasToServer();
-      await saveComisionesToServer();
+      fetch('/api/comisiones',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.comisiones)});
       renderOfrList();
       renderComList();
       sb('Datos importados correctamente', 'ok');
@@ -845,13 +892,66 @@ function renderUsersTable(){
   $('cfg-users-content').innerHTML = ST.usuarios.map(u => `
     <div class="lux-item">
       <div>
-        <div class="lux-item-name">${u.nombre}</div>
+        <div class="lux-item-name">${u.nombre} <span style="font-size:10px;color:var(--slate-400);margin-left:8px;text-transform:uppercase;background:var(--slate-100);padding:2px 6px;border-radius:4px">${u.role}</span></div>
         <div style="font-size:12px; color:var(--slate-400)">${u.email}</div>
       </div>
-      <button class="btn-trash-circle" onclick="delUser('${u.id}')">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
-      </button>
+      <div style="display:flex;gap:4px">
+        <button class="btn-action secondary" onclick="editUser('${u.id}')" style="height:34px;padding:0 12px;border-radius:17px;font-size:11px">Editar</button>
+        <button class="btn-trash-circle" onclick="delUser('${u.id}')">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+        </button>
+      </div>
     </div>
   `).join(''); 
 }
+
+function newUser(){
+  ST.editUserId = null;
+  $('usrEditorTitle').innerText = 'Nuevo Usuario';
+  $('eu_nombre').value = '';
+  $('eu_email').value = '';
+  $('eu_pass').value = '';
+  $('eu_role').value = 'comercial';
+  $('usrEditor').style.display = 'block';
+}
+
+function editUser(id){
+  const u = ST.usuarios.find(x => x.id === id); if(!u) return;
+  ST.editUserId = id;
+  $('usrEditorTitle').innerText = 'Editar Usuario';
+  $('eu_nombre').value = u.nombre || '';
+  $('eu_email').value = u.email || '';
+  $('eu_pass').value = ''; // never show password
+  $('eu_role').value = u.role || 'comercial';
+  $('usrEditor').style.display = 'block';
+}
+
+async function saveUser(){
+  const payload = {
+    action: ST.editUserId ? 'update' : 'create',
+    id: ST.editUserId,
+    nombre: $('eu_nombre').value.trim(),
+    email: $('eu_email').value.trim(),
+    role: $('eu_role').value,
+    password: $('eu_pass').value.trim()
+  };
+  if(!payload.nombre || !payload.email) return alert('Nombre y email obligatorios');
+  if(!ST.editUserId && !payload.password) return alert('Contraseña obligatoria para nuevos usuarios');
+  
+  await fetch('/api/usuarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+  await loadUsuarios();
+  renderUsersTable();
+  $('usrEditor').style.display = 'none';
+  sb('Usuario guardado ✓','ok');
+}
+
+async function delUser(id){
+  if(id === ST.user.id) return alert('No puedes eliminar tu propio usuario activo.');
+  if(!confirm('¿Eliminar usuario?')) return;
+  await fetch('/api/usuarios', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'delete', id:id}) });
+  await loadUsuarios();
+  renderUsersTable();
+  sb('Usuario eliminado','info');
+}
+
 async function loadUsuarios(){ try{ const r=await fetch('/api/usuarios'); ST.usuarios=await r.json(); } catch(e){} }

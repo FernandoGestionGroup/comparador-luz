@@ -486,7 +486,8 @@
                 <div style="width:200px;flex-shrink:0;">
                     <div style="font-weight:800;font-size:12px;color:var(--slate-400);text-transform:uppercase;margin-bottom:12px;letter-spacing:1px">Módulos</div>
                     <div style="display:flex;flex-direction:column;gap:6px;">
-                        <button class="com-item active" id="cfgTab-int" onclick="switchCfgTab('int')">Interfaz / General</button>
+                        <button class="com-item active" id="cfgTab-int" onclick="switchCfgTab('int')">General</button>
+                        <button class="com-item admin-only" id="cfgTab-glo" onclick="switchCfgTab('glo')">Ajustes Globales</button>
                         <button class="com-item admin-only" id="cfgTab-ia" onclick="switchCfgTab('ia')">Inteligencia Artificial</button>
                         <button class="com-item admin-only" id="cfgTab-usr" onclick="switchCfgTab('usr')">Usuarios</button>
                         <button class="com-item admin-only" id="cfgTab-dat" onclick="switchCfgTab('dat')">Datos / Backup</button>
@@ -495,18 +496,39 @@
                 
                 <!-- Content Ajustes -->
                 <div style="flex:1;">
-                    <!-- INTERFAZ -->
+                    <!-- GENERAL (INTERFAZ Y PERFIL) -->
                     <div id="cfgMod-int" class="card">
-                        <div class="card-title">Interfaz y General</div>
-                        <div class="fld" style="max-width:300px"><label class="fld-label">Idioma</label>
-                            <select id="cfg_idioma" class="form-input">
-                                <option value="es">Español</option>
-                                <option value="en">English</option>
-                                <option value="ca">Català</option>
-                            </select>
+                        <div class="card-title">General</div>
+                        <div class="g2" style="margin-bottom:20px;border-bottom:1px solid var(--slate-100);padding-bottom:20px">
+                            <div class="fld" style="max-width:300px"><label class="fld-label">Idioma de la Interfaz</label>
+                                <select id="cfg_idioma" class="form-input">
+                                    <option value="es">Español</option>
+                                    <option value="en">English</option>
+                                    <option value="ca">Català</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-title" style="font-size:14px">Mis Datos Personales</div>
+                        <div class="g2">
+                            <div class="fld"><label class="fld-label">Nombre del Asesor (Aparecerá en los estudios)</label><input type="text" id="cfg_prof_nombre" class="form-input"></div>
+                            <div class="fld"><label class="fld-label">Email de acceso</label><input type="email" id="cfg_prof_email" class="form-input" disabled style="background:var(--slate-100);cursor:not-allowed"></div>
+                            <div class="fld"><label class="fld-label">Nueva Contraseña (dejar vacío para no cambiar)</label><input type="password" id="cfg_prof_pass" class="form-input"></div>
                         </div>
                         <div class="btn-group" style="justify-content:flex-start;margin-top:20px">
-                            <button class="btn-action primary" onclick="saveConfig()">Guardar Configuración</button>
+                            <button class="btn-action primary" onclick="saveConfig()">Guardar Configuración y Perfil</button>
+                        </div>
+                    </div>
+
+                    <!-- AJUSTES GLOBALES (ADMIN) -->
+                    <div id="cfgMod-glo" class="card" style="display:none;">
+                        <div class="card-title">Ajustes Globales por Defecto</div>
+                        <div style="font-size:13px;color:var(--slate-600);margin-bottom:16px;">Estos valores se autocompletarán por defecto en nuevas simulaciones.</div>
+                        <div class="g2">
+                            <div class="fld"><label class="fld-label">IVA / IGIC por Defecto (%)</label><input type="number" id="cfg_glo_iva" class="form-input" step="0.1"></div>
+                            <div class="fld"><label class="fld-label">IEE por Defecto (%)</label><input type="number" id="cfg_glo_iee" class="form-input" step="0.000001"></div>
+                        </div>
+                        <div class="btn-group" style="justify-content:flex-start;margin-top:20px">
+                            <button class="btn-action primary" onclick="saveConfig()">Guardar Ajustes Globales</button>
                         </div>
                     </div>
                     
@@ -533,8 +555,30 @@
                     
                     <!-- USUARIOS -->
                     <div id="cfgMod-usr" class="card" style="display:none;">
-                        <div class="card-title">Gestión de Usuarios</div>
-                        <div id="cfg-users-addbar"></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                            <div class="card-title" style="margin-bottom:0">Gestión de Usuarios</div>
+                            <button class="btn-action primary" onclick="newUser()" style="height:36px;font-size:12px;padding:0 16px;">+ Nuevo Usuario</button>
+                        </div>
+                        <div id="usrEditor" style="display:none;background:var(--slate-50);padding:20px;border-radius:12px;border:1px solid var(--slate-200);margin-bottom:24px">
+                            <div class="card-title" id="usrEditorTitle" style="font-size:14px">Editar Usuario</div>
+                            <div class="g2" style="margin-bottom:12px">
+                                <div class="fld"><label class="fld-label">Nombre</label><input type="text" id="eu_nombre" class="form-input"></div>
+                                <div class="fld"><label class="fld-label">Rol</label>
+                                    <select id="eu_role" class="form-input">
+                                        <option value="comercial">Comercial</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="g2" style="margin-bottom:16px">
+                                <div class="fld"><label class="fld-label">Email</label><input type="email" id="eu_email" class="form-input"></div>
+                                <div class="fld"><label class="fld-label">Contraseña</label><input type="password" id="eu_pass" class="form-input" placeholder="(dejar vacío para no cambiar)"></div>
+                            </div>
+                            <div class="btn-group" style="justify-content:flex-start">
+                                <button class="btn-action primary" onclick="saveUser()">Guardar Usuario</button>
+                                <button class="btn-action secondary" onclick="$('usrEditor').style.display='none'">Cancelar</button>
+                            </div>
+                        </div>
                         <div id="cfg-users-content"></div>
                     </div>
                     
