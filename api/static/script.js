@@ -455,7 +455,8 @@ function fillForm(d){
   // Poblar extras IEE (Regularización FNEE, etc.)
   if(d.extras_iee && d.extras_iee.length) {
     d.extras_iee.forEach(e => {
-      if(e.importe > 0) addIeeExtra(e.nombre, e.importe, true);
+      // Por defecto no aplicamos la regularización a la nueva oferta
+      if(e.importe > 0) addIeeExtra(e.nombre, e.importe, false);
     });
   }
 
@@ -468,11 +469,11 @@ function addIeeExtra(nombre,importe,mantiene){
   const id='iee_'+Date.now()+'_'+(ieeExtraCount++);
   const div=document.createElement('div');
   div.id=id; div.style.cssText='display:grid;grid-template-columns:1fr 110px auto auto;gap:8px;align-items:center;margin-bottom:7px';
-  const i1=document.createElement('input'); i1.type='text'; i1.placeholder='Ej: Ajust Restriccions / SA de REE'; i1.value=nombre; i1.className='form-input'; i1.style.fontSize='12px';
+  const i1=document.createElement('input'); i1.type='text'; i1.placeholder='Ej: Regularización FNEE'; i1.value=nombre; i1.className='form-input'; i1.style.fontSize='12px';
   const i2=document.createElement('input'); i2.type='number'; i2.step='.01'; i2.placeholder='€'; i2.value=importe||''; i2.className='form-input'; i2.style.fontSize='12px'; i2.style.textAlign='right';
   const lbl=document.createElement('label'); lbl.style.cssText='display:flex;align-items:center;gap:5px;font-size:10px;color:var(--slate-500);cursor:pointer;white-space:nowrap';
   const chk=document.createElement('input'); chk.type='checkbox'; chk.checked=mantiene; chk.style.accentColor='var(--primary)';
-  lbl.appendChild(chk); lbl.appendChild(document.createTextNode(' En nueva'));
+  lbl.appendChild(chk); lbl.appendChild(document.createTextNode(' Aplicar a nueva'));
   const btn=document.createElement('button'); btn.className='btn-trash-circle'; btn.innerHTML='<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>'; btn.onclick=function(){document.getElementById(id).remove();};
   div.appendChild(i1); div.appendChild(i2); div.appendChild(lbl); div.appendChild(btn);
   const container = $('ieeExtras');
