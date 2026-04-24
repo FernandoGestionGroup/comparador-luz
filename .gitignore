@@ -20,7 +20,7 @@ venv/
 VERSION 1.1/
 VERSION BETA/
 INICIAR.bat
-estudio_luz.py
+# estudio_luz.py
 apply_i18n.py
 tmp_translator.py
 migrate_to_firebase.py
