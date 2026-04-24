@@ -188,32 +188,37 @@ async def extract_invoice(body: dict = Body(...)):
     # 1. Detectar tipo de archivo
     has_pdf = False
     for m in messages:
-        for c in m['content']:
-            if c.get('type') == 'document' or (c.get('source') and c['source'].get('media_type') == 'application/pdf'):
-                has_pdf = True; break
+        c_list = m.get('content', [])
+        if isinstance(c_list, list):
+            for c in c_list:
+                m_type = c.get('source', {}).get('media_type', '')
+                if c.get('type') == 'document' or m_type == 'application/pdf':
+                    has_pdf = True
+                    break
+        if has_pdf: break
 
     # 2. Mapeo de llaves disponibles
     keys = {
         "google": cfg.get("gemini_key"),
-        "groq": cfg.get("openai_key") if cfg.get("openai_url") == "https://api.groq.com/openai/v1" else (cfg.get("openai_key") if cfg.get("provider")=="groq" else None),
+        "groq": cfg.get("openai_key") if (cfg.get("openai_url") and "groq" in cfg.get("openai_url")) else (cfg.get("openai_key") if cfg.get("provider")=="groq" else None),
         "openai": cfg.get("openai_key"),
         "anthropic": cfg.get("api_key")
     }
-    # Corrección especial para Groq si se detecta por URL o nombre
-    if cfg.get("openai_url") and "groq" in cfg.get("openai_url"): keys["groq"] = cfg.get("openai_key")
+    # Fix manual para Groq por URL
+    if not keys["groq"] and cfg.get("openai_url") and "groq" in cfg.get("openai_url"): keys["groq"] = cfg.get("openai_key")
 
-    # 3. Decidir Proveedor Óptimo
+    # 3. Decidir Proveedor Óptimo (Con Overwrite para PDF)
     selected = provider_manual
-    if selected == "auto" or not selected:
+    
+    # 🚨 REGLA DE ORO: Si hay PDF y tenemos Google, USA GOOGLE.
+    if has_pdf and keys["google"]:
+        selected = "google"
+        print("Smart Selector: PDF DETECTADO -> Forzando Google Gemini para evitar errores")
+    elif selected == "auto" or not selected:
         if has_pdf:
-            if keys["google"]: selected = "google"
-            elif keys["anthropic"]: selected = "anthropic"
-            else: selected = "openai"
+            selected = "google" if keys["google"] else ("anthropic" if keys["anthropic"] else "openai")
         else:
-            if keys["groq"]: selected = "groq"
-            elif keys["openai"]: selected = "openai"
-            elif keys["google"]: selected = "google"
-            else: selected = "anthropic"
+            selected = "groq" if keys["groq"] else ("openai" if keys["openai"] else ("google" if keys["google"] else "anthropic"))
 
     # 4. Fallback de seguridad (si el seleccionado no tiene llave)
     if not keys.get(selected) and selected != "auto":
