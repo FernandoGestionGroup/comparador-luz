@@ -184,100 +184,100 @@ async def extract_invoice(body: dict = Body(...)):
     provider = cfg.get("provider", "anthropic")
     messages = body.get("messages", [])
     
-        # SYSTEM PROMPT - EXTREME RIGOR
-        system_prompt = (
-            "Eres un extractor de datos JSON puro. Tu ÚNICA salida debe ser un objeto JSON.\n"
-            "REGLAS:\n"
-            "1. NO incluyas introducciones ni explicaciones (NADA de 'Aquí tienes', 'Lo siento').\n"
-            "2. NO uses bloques de código markdown.\n"
-            "3. Si un dato no existe, usa 0 o \"\".\n"
-            "4. Idioma de los valores: Español.\n\n"
-            "Estructura:\n"
-            "{\n"
-            "  \"cliente\": \"\", \"cups\": \"\", \"comercializadora\": \"\", \"tarifa\": \"\",\n"
-            "  \"potencia_kw\": 0, \"dias\": 0, \"total_factura\": 0,\n"
-            "  \"potencia\": [{\"per\":\"P1\",\"kw\":0,\"importe\":0}],\n"
-            "  \"energia\": [{\"per\":\"P1\",\"kwh\":0,\"precio\":0}],\n"
-            "  \"lecturas_energia\": [{\"per\":\"P1\",\"kwh\":0}]\n"
-            "}"
-        )
+    # SYSTEM PROMPT - EXTREME RIGOR
+    system_prompt = (
+        "Eres un extractor de datos JSON puro. Tu ÚNICA salida debe ser un objeto JSON.\n"
+        "REGLAS:\n"
+        "1. NO incluyas introducciones ni explicaciones (NADA de 'Aquí tienes', 'Lo siento').\n"
+        "2. NO uses bloques de código markdown.\n"
+        "3. Si un dato no existe, usa 0 o \"\".\n"
+        "4. Idioma de los valores: Español.\n\n"
+        "Estructura:\n"
+        "{\n"
+        "  \"cliente\": \"\", \"cups\": \"\", \"comercializadora\": \"\", \"tarifa\": \"\",\n"
+        "  \"potencia_kw\": 0, \"dias\": 0, \"total_factura\": 0,\n"
+        "  \"potencia\": [{\"per\":\"P1\",\"kw\":0,\"importe\":0}],\n"
+        "  \"energia\": [{\"per\":\"P1\",\"kwh\":0,\"precio\":0}],\n"
+        "  \"lecturas_energia\": [{\"per\":\"P1\",\"kwh\":0}]\n"
+        "}"
+    )
 
-        text = ""
-        try:
-            if provider == "anthropic":
-                import anthropic
-                client = anthropic.Anthropic(api_key=cfg.get("api_key"))
-                response = client.messages.create(
-                    model=cfg.get("model") or "claude-3-5-sonnet-latest",
-                    max_tokens=4096,
-                    system=system_prompt,
-                    messages=messages
-                )
-                text = response.content[0].text
-                
-            elif provider == "google":
-                from google import genai
-                from google.genai import types
-                key = cfg.get("gemini_key")
-                if not key: return JSONResponse(status_code=400, content={"error": "Falta la API Key de Google"})
-                client = genai.Client(api_key=key)
-                
-                contents = []
-                for m in messages:
-                    parts = []
-                    for c in m['content']:
-                        if c['type'] == 'text':
-                            parts.append(types.Part.from_text(text=c['text']))
-                        elif c['type'] in ['image', 'document']:
-                            parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
-                    contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
-                
-                response = client.models.generate_content(
-                    model=cfg.get("model") or "gemini-2.0-flash",
-                    contents=contents,
-                    config=types.GenerateContentConfig(system_instruction=system_prompt)
-                )
-                text = response.text
-
-            elif provider in ["openai", "groq"]:
-                from openai import OpenAI
-                is_groq = (provider == "groq")
-                b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
-                api_key = cfg.get("openai_key")
-                
-                if not api_key: return JSONResponse(status_code=400, content={"error": f"Falta la API Key para {provider.upper()}"})
-                
-                client = OpenAI(api_key=api_key, base_url=b_url)
-                
-                # Message adaptation for Vision-capable models
-                oa_messages = [{"role": "system", "content": system_prompt}]
-                for m in messages:
-                    content = []
-                    for c in m['content']:
-                        if c['type'] == 'text':
-                            content.append({"type": "text", "text": c['text']})
-                        elif c['type'] == 'image':
-                            content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
-                    oa_messages.append({"role": m['role'], "content": content})
-                
-                default_model = "meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o"
-                response = client.chat.completions.create(
-                    model=cfg.get("model") or default_model,
-                    messages=oa_messages,
-                    max_tokens=4096,
-                    response_format={"type": "json_object"} if not is_groq else None 
-                )
-                text = response.choices[0].message.content
-            else:
-                return JSONResponse(status_code=400, content={"error": f"Proveedor no soportado: {provider}"})
-
-            # Robust JSON extraction
-            import re
-            json_match = re.search(r'(\{.*\})', text, re.DOTALL)
-            if json_match:
-                text = json_match.group(1)
+    text = ""
+    try:
+        if provider == "anthropic":
+            import anthropic
+            client = anthropic.Anthropic(api_key=cfg.get("api_key"))
+            response = client.messages.create(
+                model=cfg.get("model") or "claude-3-5-sonnet-latest",
+                max_tokens=4096,
+                system=system_prompt,
+                messages=messages
+            )
+            text = response.content[0].text
             
-            return JSONResponse(status_code=200, content={"text": text, "provider": provider})
+        elif provider == "google":
+            from google import genai
+            from google.genai import types
+            key = cfg.get("gemini_key")
+            if not key: return JSONResponse(status_code=400, content={"error": "Falta la API Key de Google"})
+            client = genai.Client(api_key=key)
+            
+            contents = []
+            for m in messages:
+                parts = []
+                for c in m['content']:
+                    if c['type'] == 'text':
+                        parts.append(types.Part.from_text(text=c['text']))
+                    elif c['type'] in ['image', 'document']:
+                        parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
+                contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
+            
+            response = client.models.generate_content(
+                model=cfg.get("model") or "gemini-2.0-flash",
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=system_prompt)
+            )
+            text = response.text
+
+        elif provider in ["openai", "groq"]:
+            from openai import OpenAI
+            is_groq = (provider == "groq")
+            b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
+            api_key = cfg.get("openai_key")
+            
+            if not api_key: return JSONResponse(status_code=400, content={"error": f"Falta la API Key para {provider.upper()}"})
+            
+            client = OpenAI(api_key=api_key, base_url=b_url)
+            
+            # Message adaptation for Vision-capable models
+            oa_messages = [{"role": "system", "content": system_prompt}]
+            for m in messages:
+                content = []
+                for c in m['content']:
+                    if c['type'] == 'text':
+                        content.append({"type": "text", "text": c['text']})
+                    elif c['type'] == 'image':
+                        content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
+                oa_messages.append({"role": m['role'], "content": content})
+            
+            default_model = "meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o"
+            response = client.chat.completions.create(
+                model=cfg.get("model") or default_model,
+                messages=oa_messages,
+                max_tokens=4096,
+                response_format={"type": "json_object"} if not is_groq else None 
+            )
+            text = response.choices[0].message.content
+        else:
+            return JSONResponse(status_code=400, content={"error": f"Proveedor no soportado: {provider}"})
+
+        # Robust JSON extraction
+        import re
+        json_match = re.search(r'(\{.*\})', text, re.DOTALL)
+        if json_match:
+            text = json_match.group(1)
+        
+        return JSONResponse(status_code=200, content={"text": text, "provider": provider})
 
     except Exception as e:
         err_str = str(e)
