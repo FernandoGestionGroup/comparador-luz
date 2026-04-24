@@ -220,6 +220,7 @@ async function saveConfig(){
   sb('Configuración guardada ✓','ok'); applyLang();
 }
 
+function updCnt(){} // stub — offer count badge (optional)
 async function loadOfertas(){ try{ const r=await fetch('/api/ofertas'); ST.ofertas=await r.json(); updCnt(); } catch(e){} }
 async function saveOfertasToServer(){ await fetch('/api/ofertas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.ofertas)}); }
 async function loadUsuarios(){ try{ const r=await fetch('/api/usuarios'); ST.usuarios=await r.json(); } catch(e){} }
@@ -306,8 +307,11 @@ function addLecL(per){
 function updTar(){
   const v = n($('f_pot').value); const currentTar = $('f_tar').value; let t = v<=15?'2.0TD':'3.0TD';
   if(v > 150 && currentTar !== '3.0TD') t = '6.1TD';
-  $('f_tar').value=t; $('f_tar_cups').value=t; $('tarTag').textContent=t;
-  $('potHint').style.display = t!=='2.0TD'?'block':'none'; $('f_pot_cups').value = v||'';
+  $('f_tar').value=t;
+  if($('f_tar_cups')) $('f_tar_cups').value=t;
+  if($('tarTag')) $('tarTag').textContent=t;
+  if($('potHint')) $('potHint').style.display = t!=='2.0TD'?'block':'none';
+  if($('f_pot_cups')) $('f_pot_cups').value = v||'';
 }
 
 function onFiles(flist){
@@ -385,9 +389,20 @@ function getForm(){
 }
 
 function renderCmp(){
-  const d=getForm(); const res=ST.ofertas.map(o=>{ const c=calcOfr(d,o); return Object.assign({},o,c); });
-  res.sort((a,b)=>b.comision-a.comision); ST._res=res;
-  $('rankDiv').innerHTML=res.map(r=>`<div class="ofr-card" onclick="selOfr('${r.id}')"><b>${r.nombre}</b><br>${r.total.toFixed(2)} €</div>`).join('');
+  const d=getForm(); 
+  const res=ST.ofertas.map(o => {
+    const c = calcOfr(d, o);
+    return Object.assign({}, o, c);
+  });
+  res.sort((a,b) => a.total - b.total); 
+  ST._res = res;
+  
+  $('rankDiv').innerHTML = res.map(r => `
+    <div class="lux-item" onclick="selOfr('${r.id}')" style="cursor:pointer">
+      <div class="lux-item-name">${r.nombre}</div>
+      <div class="lux-item-val">${r.total.toFixed(2)} €</div>
+    </div>
+  `).join('');
 }
 
 function calcOfr(d, o){
@@ -396,11 +411,41 @@ function calcOfr(d, o){
   const total=tPot+tEn; return {total, comision:100}; // Simplified
 }
 
-function selOfr(id){ const r=ST._res.find(x=>x.id===id); if(r) ST.sel=r; $('detDiv').innerHTML=`<b>${r.nombre}</b><br>${r.total.toFixed(2)} €`; }
+function selOfr(id){
+  const r=ST._res.find(x=>x.id===id); if(!r) return; ST.sel=r;
+  $('detDiv').innerHTML=`
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;color:var(--slate-900);margin-bottom:8px">${r.nombre}</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:32px;font-weight:800;color:var(--primary)">${r.total.toFixed(2)} €</div>
+      <div style="font-size:12px;color:var(--slate-400);margin-top:12px">Factura estimada mensual</div>
+    </div>
+  `;
+}
 
-function renderOfrList(){ $('ofrList').innerHTML=ST.ofertas.map(o=>`<div class="card">${o.nombre} <button onclick="delOfr('${o.id}')">✕</button></div>`).join(''); }
+function renderOfrList(){ 
+  $('ofrList').innerHTML = ST.ofertas.map(o => `
+    <div class="lux-item">
+      <div class="lux-item-name">${o.nombre}</div>
+      <button class="btn-trash-circle" onclick="delOfr('${o.id}')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+      </button>
+    </div>
+  `).join(''); 
+}
 async function saveOfertasToServer(){ await fetch('/api/ofertas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ST.ofertas)}); }
 function delOfr(id){ if(confirm('Eliminar?')){ ST.ofertas=ST.ofertas.filter(x=>x.id!==id); saveOfertasToServer(); renderOfrList(); } }
 
-function renderUsersTable(){ $('cfg-users-content').innerHTML = ST.usuarios.map(u => `<div>${u.nombre} (${u.email})</div>`).join(''); }
+function renderUsersTable(){ 
+  $('cfg-users-content').innerHTML = ST.usuarios.map(u => `
+    <div class="lux-item">
+      <div>
+        <div class="lux-item-name">${u.nombre}</div>
+        <div style="font-size:12px; color:var(--slate-400)">${u.email}</div>
+      </div>
+      <button class="btn-trash-circle" onclick="delUser('${u.id}')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+      </button>
+    </div>
+  `).join(''); 
+}
 async function loadUsuarios(){ try{ const r=await fetch('/api/usuarios'); ST.usuarios=await r.json(); } catch(e){} }
