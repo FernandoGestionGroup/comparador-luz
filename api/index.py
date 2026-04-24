@@ -312,7 +312,7 @@ async def extract_invoice(body: dict = Body(...)):
                                 content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
                         oa_messages.append({"role": m['role'], "content": content})
                     
-                    default_model = "meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o"
+                    default_model = "meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o-mini"
                     response = client.chat.completions.create(
                         model=cfg.get("model") or default_model,
                         messages=oa_messages, max_tokens=4096,
