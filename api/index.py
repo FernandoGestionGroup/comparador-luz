@@ -246,100 +246,101 @@ async def extract_invoice(body: dict = Body(...)):
         "}"
     )
 
-    # 🤖 AI HUB - ORQUESTADOR CON RETRY AUTOMÁTICO
-    import re
-    text = ""
-    attempted_providers = []
-    
-    # Lista de prioridades según tipo de archivo
-    if has_pdf:
-        priority = ["google", "anthropic", "openai"]
-    else:
-        priority = ["groq", "openai", "google", "anthropic"]
-    
-    # Si hay una selección manual, la ponemos al principio de la prioridad
-    if provider_manual != "auto" and provider_manual in priority:
-        priority.remove(provider_manual)
-        priority.insert(0, provider_manual)
-
-    for provider in priority:
-        if not keys.get(provider): continue
-        attempted_providers.append(provider)
-        print(f"AI Hub: Intentando extracción vía {provider.upper()}...")
+    try:
+        # 🤖 AI HUB - ORQUESTADOR CON RETRY AUTOMÁTICO
+        import re
+        text = ""
+        attempted_providers = []
         
-        try:
-            if provider == "anthropic":
-                import anthropic
-                client = anthropic.Anthropic(api_key=keys["anthropic"])
-                response = client.messages.create(
-                    model=cfg.get("model") or "claude-3-5-sonnet-latest",
-                    max_tokens=4096, system=system_prompt, messages=messages
-                )
-                text = response.content[0].text
-                
-            elif provider == "google":
-                from google import genai
-                from google.genai import types
-                client = genai.Client(api_key=keys["google"])
-                contents = []
-                for m in messages:
-                    parts = []
-                    for c in m['content']:
-                        if c['type'] == 'text': parts.append(types.Part.from_text(text=c['text']))
-                        elif c['type'] in ['image', 'document']:
-                            parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
-                    contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
-                
-                response = client.models.generate_content(
-                    model=cfg.get("model") or "gemini-2.0-flash",
-                    contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt)
-                )
-                text = response.text
+        # Lista de prioridades según tipo de archivo
+        if has_pdf:
+            priority = ["google", "anthropic", "openai"]
+        else:
+            priority = ["groq", "openai", "google", "anthropic"]
+        
+        # Si hay una selección manual, la ponemos al principio de la prioridad
+        if provider_manual != "auto" and provider_manual in priority:
+            priority.remove(provider_manual)
+            priority.insert(0, provider_manual)
 
-            elif provider in ["openai", "groq"]:
-                from openai import OpenAI
-                is_groq = (provider == "groq")
-                b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
-                client = OpenAI(api_key=keys["openai"], base_url=b_url)
-                
-                oa_messages = [{"role": "system", "content": system_prompt}]
-                for m in messages:
-                    content = []
-                    for c in m['content']:
-                        if c['type'] == 'text': content.append({"type": "text", "text": c['text']})
-                        elif c['type'] == 'image':
-                            content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
-                    oa_messages.append({"role": m['role'], "content": content})
-                
-                default_model = "meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o"
-                response = client.chat.completions.create(
-                    model=cfg.get("model") or default_model,
-                    messages=oa_messages, max_tokens=4096,
-                    response_format={"type": "json_object"} if not is_groq else None 
-                )
-                text = response.choices[0].message.content
-
-            # Si llegamos aquí sin excepción, buscamos el JSON y salimos del loop
-            match = re.search(r'(\{.*\})', text, re.DOTALL)
-            if match:
-                text = match.group(1)
-                return JSONResponse(status_code=200, content={"text": text, "provider": provider})
+        for provider in priority:
+            if not keys.get(provider): continue
+            attempted_providers.append(provider)
+            print(f"AI Hub: Intentando extracción vía {provider.upper()}...")
             
-        except Exception as e:
-            err_str = str(e)
-            print(f"Error con {provider}: {err_str}")
-            if "429" in err_str or "limit" in err_str.lower():
-                print(f"AI Hub: {provider} saturado, saltando al siguiente...")
-                continue
-            # Si es otro error grave, lo lanzamos
-            return JSONResponse(status_code=500, content={"error": err_str, "traceback": traceback.format_exc()})
+            try:
+                if provider == "anthropic":
+                    import anthropic
+                    client = anthropic.Anthropic(api_key=keys["anthropic"])
+                    response = client.messages.create(
+                        model=cfg.get("model") or "claude-3-5-sonnet-latest",
+                        max_tokens=4096, system=system_prompt, messages=messages
+                    )
+                    text = response.content[0].text
+                    
+                elif provider == "google":
+                    from google import genai
+                    from google.genai import types
+                    client = genai.Client(api_key=keys["google"])
+                    contents = []
+                    for m in messages:
+                        parts = []
+                        for c in m['content']:
+                            if c['type'] == 'text': parts.append(types.Part.from_text(text=c['text']))
+                            elif c['type'] in ['image', 'document']:
+                                parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
+                        contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
+                    
+                    response = client.models.generate_content(
+                        model=cfg.get("model") or "gemini-2.0-flash",
+                        contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt)
+                    )
+                    text = response.text
 
-    return JSONResponse(status_code=500, content={"error": f"Todas las IAs fallaron o están saturadas. Intentado con: {attempted_providers}"})
+                elif provider in ["openai", "groq"]:
+                    from openai import OpenAI
+                    is_groq = (provider == "groq")
+                    b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
+                    client = OpenAI(api_key=keys["openai"], base_url=b_url)
+                    
+                    oa_messages = [{"role": "system", "content": system_prompt}]
+                    for m in messages:
+                        content = []
+                        for c in m['content']:
+                            if c['type'] == 'text': content.append({"type": "text", "text": c['text']})
+                            elif c['type'] == 'image':
+                                content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
+                        oa_messages.append({"role": m['role'], "content": content})
+                    
+                    default_model = "meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o"
+                    response = client.chat.completions.create(
+                        model=cfg.get("model") or default_model,
+                        messages=oa_messages, max_tokens=4096,
+                        response_format={"type": "json_object"} if not is_groq else None 
+                    )
+                    text = response.choices[0].message.content
+
+                # Si llegamos aquí sin excepción, buscamos el JSON y salimos del loop
+                match = re.search(r'(\{.*\})', text, re.DOTALL)
+                if match:
+                    text = match.group(1)
+                    return JSONResponse(status_code=200, content={"text": text, "provider": provider})
+                
+            except Exception as e:
+                err_str = str(e)
+                print(f"Error con {provider}: {err_str}")
+                if "429" in err_str or "limit" in err_str.lower():
+                    print(f"AI Hub: {provider} saturado, saltando al siguiente...")
+                    continue
+                # Si es otro error grave, lo lanzamos
+                return JSONResponse(status_code=500, content={"error": err_str, "traceback": traceback.format_exc()})
+
+        return JSONResponse(status_code=500, content={"error": f"Todas las IAs fallaron o están saturadas. Intentado con: {attempted_providers}"})
 
     except Exception as e:
         err_str = str(e)
         if "429" in err_str:
-            return JSONResponse(status_code=429, content={"error": "Límite de peticiones alcanzado. Espera un minuto o cambia a GROQ (gratis y rápido)."})
+            return JSONResponse(status_code=429, content={"error": "Límite de peticiones alcanzado. Espera un minuto o usa GROQ con una foto."})
         return JSONResponse(status_code=500, content={"error": err_str, "traceback": traceback.format_exc()})
 
 @app.post("/api/claude")
