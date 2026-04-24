@@ -343,3 +343,28 @@ async def extract_invoice(body: dict = Body(...)):
         return JSONResponse(status_code=500, content={"error": f"Todas las IAs fallaron. Intentado con: {attempted_providers}"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e), "traceback": traceback.format_exc()})
+
+# --- SERVING FRONTEND (VERCEL SAFE) ---
+@app.get("/")
+async def serve_root():
+    index = STATIC_DIR / "index.html"
+    if index.exists(): return FileResponse(str(index))
+    # Fallback to local test structure
+    alt_index = CURRENT_DIR / "static" / "index.html"
+    if alt_index.exists(): return FileResponse(str(alt_index))
+    return JSONResponse({"error": "index.html not found", "path": str(index)})
+
+@app.get("/{path:path}")
+async def serve_static(path: str):
+    if path.startswith("api/"): return JSONResponse({"error": "Route not found"}, status_code=404)
+    file = STATIC_DIR / path
+    if file.is_file(): return FileResponse(str(file))
+    alt_file = CURRENT_DIR / "static" / path
+    if alt_file.is_file(): return FileResponse(str(alt_file))
+    
+    index = STATIC_DIR / "index.html"
+    if index.exists(): return FileResponse(str(index))
+    alt_index = CURRENT_DIR / "static" / "index.html"
+    if alt_index.exists(): return FileResponse(str(alt_index))
+    
+    return JSONResponse({"error": f"File {path} not found"})
