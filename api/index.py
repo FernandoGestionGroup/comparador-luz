@@ -181,23 +181,58 @@ async def extract_invoice(body: dict = Body(...)):
     d = db.collection('config').document('global').get()
     cfg = d.to_dict() if d.exists else {}
     
-    provider = cfg.get("provider", "anthropic")
-    messages = body.get("messages", [])
+    # 🤖 AI HUB - ORQUESTADOR INTELIGENTE
+    provider_manual = cfg.get("provider", "auto")
     
-    # MASTER SYSTEM PROMPT - SPANISH ENERGY EXPERT
+    # 1. Detectar tipo de archivo
+    has_pdf = False
+    for m in messages:
+        for c in m['content']:
+            if c.get('type') == 'document' or (c.get('source') and c['source'].get('media_type') == 'application/pdf'):
+                has_pdf = True; break
+
+    # 2. Mapeo de llaves disponibles
+    keys = {
+        "google": cfg.get("gemini_key"),
+        "groq": cfg.get("openai_key") if cfg.get("openai_url") == "https://api.groq.com/openai/v1" else (cfg.get("openai_key") if cfg.get("provider")=="groq" else None),
+        "openai": cfg.get("openai_key"),
+        "anthropic": cfg.get("api_key")
+    }
+    # Corrección especial para Groq si se detecta por URL o nombre
+    if cfg.get("openai_url") and "groq" in cfg.get("openai_url"): keys["groq"] = cfg.get("openai_key")
+
+    # 3. Decidir Proveedor Óptimo
+    selected = provider_manual
+    if selected == "auto" or not selected:
+        if has_pdf:
+            if keys["google"]: selected = "google"
+            elif keys["anthropic"]: selected = "anthropic"
+            else: selected = "openai"
+        else:
+            if keys["groq"]: selected = "groq"
+            elif keys["openai"]: selected = "openai"
+            elif keys["google"]: selected = "google"
+            else: selected = "anthropic"
+
+    # 4. Fallback de seguridad (si el seleccionado no tiene llave)
+    if not keys.get(selected) and selected != "auto":
+        for p, k in keys.items():
+            if k: 
+                selected = p
+                break
+
+    provider = selected
+    print(f"AI Hub: Ejecutando extracción vía {provider.upper()} (Manual: {provider_manual})")
+
+    # MASTER SYSTEM PROMPT - SPANISH ENERGY EXPERT (STRICT REALITY ONLY)
     system_prompt = (
-        "Eres un experto en auditoría de facturas eléctricas de España. Tu misión es extraer datos técnicos con precisión del 100%.\n"
-        "REGLAS DE IDENTIFICACIÓN:\n"
-        "1. CLIENTE: Busca el titular del contrato.\n"
-        "2. CUPS: Siempre empieza por 'ES' seguido de 20 o 22 caracteres.\n"
-        "3. TARIFA: Identifica si es 2.0TD, 3.0TD o 6.1TD.\n"
-        "4. POTENCIA: Extrae los kW contratados por periodo (P1 a P6). En 2.0TD suele haber dos (P1 punta/llano, P2 valle). En 3.0TD+ hay seis.\n"
-        "5. ENERGÍA: Extrae el consumo (kWh) y el precio (€/kWh) de cada periodo facturado.\n"
-        "6. LECTURAS: Busca la sección de 'Lecturas' o 'Consumo' para obtener los kWh reales por periodo.\n"
-        "7. IMPUESTOS: IEE suele ser 5.11% o similar. IVA suele ser 21%, 10% o 5%.\n\n"
-        "RESPONDE ÚNICAMENTE CON ESTE JSON (sin texto adicional):\n"
+        "Eres un experto extractor de facturas eléctricas españolas. Precisión 100%.\n"
+        "REGLAS:\n"
+        "1. PROHIBIDO INVENTAR: Si no ves un dato, devuelve \"\" o 0. No uses 'Juan Pérez'.\n"
+        "2. ESTRUCTURA: Devuelve solo JSON plano.\n\n"
+        "Estructura:\n"
         "{\n"
-        "  \"cliente\": \"\", \"cups\": \"\", \"comercializadora\": \"\", \"direccion\": \"\", \"cp\": \"\", \"tarifa\": \"\",\n"
+        "  \"cliente\": \"\", \"cups\": \"\", \"comercializadora\": \"\", \"direccion\": \"\", \"cp\": \"\", \"tarifa\": \"\", \n"
         "  \"potencia_kw\": 0, \"dias\": 0, \"total_factura\": 0,\n"
         "  \"potencia\": [{\"per\":\"P1\",\"kw\":0,\"importe\":0}],\n"
         "  \"energia\": [{\"per\":\"P1\",\"kwh\":0,\"precio\":0}],\n"
@@ -209,7 +244,7 @@ async def extract_invoice(body: dict = Body(...)):
     try:
         if provider == "anthropic":
             import anthropic
-            client = anthropic.Anthropic(api_key=cfg.get("api_key"))
+            client = anthropic.Anthropic(api_key=keys["anthropic"])
             response = client.messages.create(
                 model=cfg.get("model") or "claude-3-5-sonnet-latest",
                 max_tokens=4096,
@@ -221,9 +256,7 @@ async def extract_invoice(body: dict = Body(...)):
         elif provider == "google":
             from google import genai
             from google.genai import types
-            key = cfg.get("gemini_key")
-            if not key: return JSONResponse(status_code=400, content={"error": "Falta la API Key de Google"})
-            client = genai.Client(api_key=key)
+            client = genai.Client(api_key=keys["google"])
             
             contents = []
             for m in messages:
@@ -246,13 +279,8 @@ async def extract_invoice(body: dict = Body(...)):
             from openai import OpenAI
             is_groq = (provider == "groq")
             b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
-            api_key = cfg.get("openai_key")
+            client = OpenAI(api_key=keys["openai"], base_url=b_url)
             
-            if not api_key: return JSONResponse(status_code=400, content={"error": f"Falta la API Key para {provider.upper()}"})
-            
-            client = OpenAI(api_key=api_key, base_url=b_url)
-            
-            # Message adaptation for Vision-capable models
             oa_messages = [{"role": "system", "content": system_prompt}]
             for m in messages:
                 content = []
@@ -272,13 +300,12 @@ async def extract_invoice(body: dict = Body(...)):
             )
             text = response.choices[0].message.content
         else:
-            return JSONResponse(status_code=400, content={"error": f"Proveedor no soportado: {provider}"})
+            return JSONResponse(status_code=400, content={"error": f"No hay una IA configurada correctamente"})
 
         # 🛡️ AISLADOR DE JSON AGRESIVO
         import re
         match = re.search(r'(\{.*\})', text, re.DOTALL)
-        if match:
-            text = match.group(1)
+        if match: text = match.group(1)
         
         return JSONResponse(status_code=200, content={"text": text, "provider": provider})
 
