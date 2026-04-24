@@ -3,113 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estudio Luz - Comparador Energético Profesional</title>
+    <title>Estudio Luz - GestionGroup</title>
     <link rel="icon" type="image/png" href="https://gestiongroup.es/wp-content/uploads/2024/07/Logotipo-Gestion-Group.png">
-    <link rel="stylesheet" href="style.css?v=1.1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2cb5ad;
+            --primary-dark: #249992;
+            --slate-900: #0f172a;
+            --slate-600: #475569;
+            --slate-400: #94a3b8;
+            --slate-100: #f1f5f9;
+            --white: #ffffff;
+            --error: #e11d48;
+            --radius: 12px;
+            --shadow-subtle: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-heavy: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: var(--slate-900);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* --- LOGIN SCREEN --- */
+        .login-screen {
+            position: fixed; inset: 0;
+            background: radial-gradient(circle at top left, #f1f5f9, #ffffff, #e2e8f0);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000;
+        }
+
+        .login-card {
+            background: var(--white);
+            width: 100%; max-width: 440px;
+            padding: 48px; border-radius: 24px;
+            box-shadow: var(--shadow-heavy);
+            border: 1px solid var(--slate-100);
+            text-align: center;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .login-brand { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: var(--slate-900); margin-bottom: 8px; }
+        .login-brand span { color: var(--primary); }
+        .login-sub { font-size: 11px; text-transform: uppercase; color: var(--slate-400); letter-spacing: 0.15em; font-weight: 600; margin-bottom: 40px; }
+
+        .form-group { text-align: left; margin-bottom: 24px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--slate-600); margin-bottom: 8px; }
+        .form-input {
+            width: 100%; padding: 14px 16px; border-radius: var(--radius);
+            border: 1.5px solid var(--slate-100); font-family: inherit; font-size: 14px;
+            transition: all 0.2s ease; background: #fcfdfe;
+        }
+        .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(44, 181, 173, 0.1); background: var(--white); }
+
+        .btn-login {
+            width: 100%; padding: 16px; border-radius: var(--radius);
+            background: var(--primary); color: var(--white);
+            border: none; font-size: 15px; font-weight: 700; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin-top: 8px;
+        }
+        .btn-login:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(44, 181, 173, 0.3); }
+
+        .login-err { color: var(--error); font-size: 13px; font-weight: 600; margin-top: 16px; display: none; }
+
+        /* --- SHELL (POST-LOGIN) --- */
+        .shell { display: none; flex-direction: column; height: 100vh; }
+        .topbar {
+            height: 72px; background: var(--white); border-bottom: 1px solid var(--slate-100);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .top-logo { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: var(--slate-900); }
+        .top-logo span { color: var(--primary); }
+
+        .nav-tabs { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 12px; }
+        .nav-tab {
+            padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+            color: var(--slate-600); border: none; background: transparent; transition: all 0.2s;
+        }
+        .nav-tab.active { background: var(--white); color: var(--primary); box-shadow: var(--shadow-subtle); }
+
+        .user-info { display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 600; }
+        .logout-btn { color: var(--slate-400); background: none; border: none; cursor: pointer; font-weight: 600; }
+        .logout-btn:hover { color: var(--error); }
+
+        /* --- CONTENT --- */
+        .main-container { flex: 1; overflow-y: auto; padding: 40px; background: #f8fafc; }
+        .page { display: none; max-width: 1200px; margin: 0 auto; }
+        .page.active { display: block; animation: fadeIn 0.4s ease; }
+
+        .card { background: var(--white); border-radius: 20px; padding: 40px; border: 1px solid var(--slate-100); box-shadow: var(--shadow-subtle); margin-bottom: 32px; }
+        .card-header { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .card-header::before { content: ''; width: 4px; height: 20px; background: var(--primary); border-radius: 2px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+
+        .field-group { margin-bottom: 0; }
+        .field-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--slate-400); margin-bottom: 8px; display: block; letter-spacing: 0.5px; }
+
+        .upzone {
+            border: 2px dashed var(--slate-100); border-radius: 16px; padding: 60px; text-align: center;
+            background: #fcfdfe; transition: all 0.3s; cursor: pointer;
+        }
+        .upzone:hover { border-color: var(--primary); background: #f0fdfa; }
+        .upzone-icon { font-size: 40px; margin-bottom: 16px; }
+
+        /* TABLE */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--slate-400); padding: 12px 16px; border-bottom: 2px solid var(--slate-100); }
+        .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--slate-100); }
+
+        .btn-trash {
+            background: #fff1f2; color: #e11d48; border: 1px solid #fecaca;
+            width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-trash:hover { background: #e11d48; color: white; border-color: #e11d48; transform: scale(1.1); }
+    </style>
 </head>
 <body>
 
-<!-- ══ LOGIN ══ -->
-<div class="login-screen" id="loginScreen">
-  <div class="login-box">
-    <div class="login-logo">
-      <div class="brand">ESTUDIO <span>LUZ</span></div>
-      <div class="sub">Gestion Group · Soluciones Energéticas</div>
-    </div>
-    <div class="login-field"><label>Correo Electrónico</label><input type="email" id="l_email" placeholder="usuario@gestiongroup.es" autocomplete="username"></div>
-    <div class="login-field"><label>Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()"></div>
-    <div class="login-err" id="l_err">Credenciales incorrectas</div>
-    <button class="login-btn" onclick="doLogin()">Acceder al Sistema</button>
-  </div>
-</div>
-
-<!-- ══ APP ══ -->
-<div class="shell" id="shell" style="display:none">
-  <div class="topbar">
-    <div class="logo"><span class="logo-bolt">⚡</span>ESTUDIO <span>LUZ</span></div>
-    <div class="tabs" id="mainTabs">
-      <button class="tab on"  onclick="go('fac')"  id="tab-fac">① Factura</button>
-      <button class="tab"     onclick="go('rev')"  id="tab-rev">② Revisión</button>
-      <button class="tab"     onclick="go('cmp')"  id="tab-cmp">③ Comparativa</button>
-      <button class="tab"     onclick="go('ofr')"  id="tab-ofr">Base de Ofertas</button>
-      <button class="tab"     onclick="go('com')"  id="tab-com">Comisionado</button>
-      <button class="tab"     onclick="go('cfg')"  id="tab-cfg">Configuración</button>
-    </div>
-    <div class="user-info">
-      <div class="user-badge">
-        <span id="ui_nombre">—</span>
-        <span class="role" id="ui_role">—</span>
-      </div>
-      <button class="btn-logout" onclick="doLogout()">Salir</button>
-    </div>
-  </div>
-  <div class="body"><div class="pane">
-
-    <!-- ══ FACTURA APORTADA ══ -->
-    <div class="page on" id="p-fac">
-      <div class="g2" style="margin-bottom:16px">
-        <div class="field"><label>Asesor Energético</label>
-          <input id="g_asesor" placeholder="Nombre completo" oninput="localStorage.setItem('el_asesor',this.value)">
+    <!-- ══ LOGIN SECTION ══ -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <div class="login-brand">ESTUDIO <span>LUZ</span></div>
+            <div class="login-sub">Gestion Group · Soluciones Energéticas</div>
+            
+            <div class="form-group">
+                <label>Correo Electrónico</label>
+                <input type="email" id="l_email" class="form-input" placeholder="usuario@gestiongroup.es" autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="l_pass" class="form-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
+            </div>
+            
+            <div id="l_err" class="login-err">Credenciales incorrectas</div>
+            
+            <button class="btn-login" onclick="doLogin()">Acceder a la plataforma</button>
         </div>
-        <div class="field"><label>Fecha de Propuesta</label>
-          <input type="date" id="g_fecha">
-        </div>
-      </div>
-
-      <div class="sec">Subir factura</div>
-      <div class="upzone" id="upzone">
-        <input type="file" id="fInput" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple onchange="onFiles(this.files)">
-        <div class="up-icon">📂</div>
-        <div class="up-title">Arrastra tu factura aquí</div>
-        <div class="up-soft">o haz clic para seleccionar archivos</div>
-        <div class="up-sub" id="upSub">PDF o imágenes · Se permiten varias páginas</div>
-      </div>
-      <div id="chips" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
-      <div id="sb" style="display:none;margin-top:10px"></div>
-
-      <div id="prevSec" style="display:none;margin-top:12px">
-        <img id="prevImg" class="prev-img" style="display:none">
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn btn-ai" id="btnEx" onclick="extract()">✦ Extraer con IA</button>
-          <button class="btn btn-s btn-sm" onclick="resetUp()">Cambiar archivos</button>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:16px">
-        <div class="ct">Parámetros del CUPS</div>
-        <div class="g3">
-          <div class="field"><label>CONSUMO ANUAL TOTAL (kWh)</label>
-            <input type="number" id="f_consumo_anual" step="1" placeholder="Ej: 45000">
-          </div>
-          <div class="field"><label>POTENCIA CONTRATADA (kW)</label>
-            <input type="number" id="f_pot_cups" step=".001" placeholder="Ej: 25" onchange="syncPot()">
-          </div>
-          <div class="field"><label>TARIFA DETECTADA</label>
-            <select id="f_tar_cups" onchange="syncTar(this.value)" style="color:var(--acc2);font-weight:700">
-              <option value="2.0TD">2.0TD</option>
-              <option value="3.0TD">3.0TD</option>
-              <option value="6.1TD">6.1TD</option>
-            </select>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- PESTAÑAS OCULTAS CARGADAS POR JS -->
-    <div class="page" id="p-rev"></div>
-    <div class="page" id="p-cmp"></div>
-    <div class="page" id="p-ofr"></div>
-    <div class="page" id="p-com"></div>
-    <div class="page" id="p-cfg"></div>
+    <!-- ══ MAIN SHELL ══ -->
+    <div class="shell" id="shell">
+        <div class="topbar">
+            <div class="top-logo">⚡ ESTUDIO <span>LUZ</span></div>
+            
+            <div class="nav-tabs">
+                <div class="nav-tab active" onclick="go('fac')" id="tab-fac">① Factura</div>
+                <div class="nav-tab" onclick="go('rev')" id="tab-rev">② Revisión</div>
+                <div class="nav-tab" onclick="go('cmp')" id="tab-cmp">③ Comparativa</div>
+                <div class="nav-tab" onclick="go('ofr')" id="tab-ofr">Ofertas</div>
+                <div class="nav-tab" onclick="go('cfg')" id="tab-cfg">Ajustes</div>
+            </div>
 
-  </div></div>
-</div>
+            <div class="user-info">
+                <span id="ui_nombre">Admin</span>
+                <button class="logout-btn" onclick="doLogout()">Cerrar Sesión</button>
+            </div>
+        </div>
 
-<script src="script.js?v=final_sync"></script>
+        <div class="main-container">
+            <!-- PAGE: FACTURA -->
+            <div class="page active" id="p-fac">
+                <div class="card">
+                    <div class="card-header">Carga de Documentación</div>
+                    <div class="upzone" id="upzone">
+                        <div class="upzone-icon">📂</div>
+                        <div style="font-weight: 700; margin-bottom: 4px;">Arrastra la factura o haz clic aquí</div>
+                        <div style="color: var(--slate-400); font-size: 13px;">PDF, JPG o PNG soportados</div>
+                        <input type="file" id="fInput" style="display:none" multiple onchange="onFiles(this.files)">
+                    </div>
+                    <div id="chips" style="margin-top:20px; display:flex; gap:10px;"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">Parámetros del CUPS</div>
+                    <div class="grid-3">
+                        <div class="field-group">
+                            <label class="field-label">Consumo Anual (kWh)</label>
+                            <input type="number" id="f_consumo_anual" class="form-input" placeholder="Ej: 45000">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Potencia Contratada (kW)</label>
+                            <input type="number" id="f_pot_cups" class="form-input" placeholder="Ej: 15.0">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Tarifa Detectada</label>
+                            <select id="f_tar_cups" class="form-input">
+                                <option value="2.0TD">2.0TD</option>
+                                <option value="3.0TD">3.0TD</option>
+                                <option value="6.1TD">6.1TD</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- OTHER PAGES WILL BE RENDERED VIA JS -->
+            <div class="page" id="p-rev"></div>
+            <div class="page" id="p-cmp"></div>
+            <div class="page" id="p-ofr"></div>
+            <div class="page" id="p-cfg"></div>
+        </div>
+    </div>
+
+    <script src="script.js?v=senior_v1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </body>
 </html>

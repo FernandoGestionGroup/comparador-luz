@@ -3,500 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estudio Luz - Comparador Energético Profesional</title>
+    <title>Estudio Luz - GestionGroup</title>
     <link rel="icon" type="image/png" href="https://gestiongroup.es/wp-content/uploads/2024/07/Logotipo-Gestion-Group.png">
-    <link rel="stylesheet" href="style.css?v=1.1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Outfit:wght@100..900&family=Syne:wght@400..800&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2cb5ad;
+            --primary-dark: #249992;
+            --slate-900: #0f172a;
+            --slate-600: #475569;
+            --slate-400: #94a3b8;
+            --slate-100: #f1f5f9;
+            --white: #ffffff;
+            --error: #e11d48;
+            --radius: 12px;
+            --shadow-subtle: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-heavy: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #f8fafc;
+            color: var(--slate-900);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* --- LOGIN SCREEN --- */
+        .login-screen {
+            position: fixed; inset: 0;
+            background: radial-gradient(circle at top left, #f1f5f9, #ffffff, #e2e8f0);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000;
+        }
+
+        .login-card {
+            background: var(--white);
+            width: 100%; max-width: 440px;
+            padding: 48px; border-radius: 24px;
+            box-shadow: var(--shadow-heavy);
+            border: 1px solid var(--slate-100);
+            text-align: center;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .login-brand { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: var(--slate-900); margin-bottom: 8px; }
+        .login-brand span { color: var(--primary); }
+        .login-sub { font-size: 11px; text-transform: uppercase; color: var(--slate-400); letter-spacing: 0.15em; font-weight: 600; margin-bottom: 40px; }
+
+        .form-group { text-align: left; margin-bottom: 24px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--slate-600); margin-bottom: 8px; }
+        .form-input {
+            width: 100%; padding: 14px 16px; border-radius: var(--radius);
+            border: 1.5px solid var(--slate-100); font-family: inherit; font-size: 14px;
+            transition: all 0.2s ease; background: #fcfdfe;
+        }
+        .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(44, 181, 173, 0.1); background: var(--white); }
+
+        .btn-login {
+            width: 100%; padding: 16px; border-radius: var(--radius);
+            background: var(--primary); color: var(--white);
+            border: none; font-size: 15px; font-weight: 700; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin-top: 8px;
+        }
+        .btn-login:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(44, 181, 173, 0.3); }
+
+        .login-err { color: var(--error); font-size: 13px; font-weight: 600; margin-top: 16px; display: none; }
+
+        /* --- SHELL (POST-LOGIN) --- */
+        .shell { display: none; flex-direction: column; height: 100vh; }
+        .topbar {
+            height: 72px; background: var(--white); border-bottom: 1px solid var(--slate-100);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .top-logo { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: var(--slate-900); }
+        .top-logo span { color: var(--primary); }
+
+        .nav-tabs { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 12px; }
+        .nav-tab {
+            padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+            color: var(--slate-600); border: none; background: transparent; transition: all 0.2s;
+        }
+        .nav-tab.active { background: var(--white); color: var(--primary); box-shadow: var(--shadow-subtle); }
+
+        .user-info { display: flex; align-items: center; gap: 16px; font-size: 13px; font-weight: 600; }
+        .logout-btn { color: var(--slate-400); background: none; border: none; cursor: pointer; font-weight: 600; }
+        .logout-btn:hover { color: var(--error); }
+
+        /* --- CONTENT --- */
+        .main-container { flex: 1; overflow-y: auto; padding: 40px; background: #f8fafc; }
+        .page { display: none; max-width: 1200px; margin: 0 auto; }
+        .page.active { display: block; animation: fadeIn 0.4s ease; }
+
+        .card { background: var(--white); border-radius: 20px; padding: 40px; border: 1px solid var(--slate-100); box-shadow: var(--shadow-subtle); margin-bottom: 32px; }
+        .card-header { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
+        .card-header::before { content: ''; width: 4px; height: 20px; background: var(--primary); border-radius: 2px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+
+        .field-group { margin-bottom: 0; }
+        .field-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--slate-400); margin-bottom: 8px; display: block; letter-spacing: 0.5px; }
+
+        .upzone {
+            border: 2px dashed var(--slate-100); border-radius: 16px; padding: 60px; text-align: center;
+            background: #fcfdfe; transition: all 0.3s; cursor: pointer;
+        }
+        .upzone:hover { border-color: var(--primary); background: #f0fdfa; }
+        .upzone-icon { font-size: 40px; margin-bottom: 16px; }
+
+        /* TABLE */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; font-size: 11px; text-transform: uppercase; color: var(--slate-400); padding: 12px 16px; border-bottom: 2px solid var(--slate-100); }
+        .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--slate-100); }
+
+        .btn-trash {
+            background: #fff1f2; color: #e11d48; border: 1px solid #fecaca;
+            width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-trash:hover { background: #e11d48; color: white; border-color: #e11d48; transform: scale(1.1); }
+    </style>
 </head>
 <body>
 
-<!-- ══ LOGIN ══ -->
-<div class="login-screen" id="loginScreen">
-  <div class="login-box">
-    <div class="login-logo">
-      <div class="brand">ESTUDIO <span>LUZ</span></div>
-      <div class="sub">Gestion Group · Soluciones Energéticas</div>
-    </div>
-    <div class="login-field"><label>Correo Electrónico</label><input type="email" id="l_email" placeholder="usuario@gestiongroup.es" autocomplete="username"></div>
-    <div class="login-field"><label>Contraseña</label><input type="password" id="l_pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()"></div>
-    <div class="login-err" id="l_err">Credenciales incorrectas</div>
-    <button class="login-btn" onclick="doLogin()">Acceder al Sistema</button>
-  </div>
-</div>
-
-<!-- ══ APP ══ -->
-<div class="shell" id="shell" style="display:none">
-  <div class="topbar">
-    <div class="logo"><span class="logo-bolt">⚡</span>ESTUDIO <span>LUZ</span></div>
-    <div class="tabs" id="mainTabs">
-      <button class="tab on"  onclick="go('fac')"  id="tab-fac">① Factura</button>
-      <button class="tab"     onclick="go('rev')"  id="tab-rev">② Revisión</button>
-      <button class="tab"     onclick="go('cmp')"  id="tab-cmp">③ Comparativa</button>
-      <button class="tab"     onclick="go('ofr')"  id="tab-ofr">Base de Ofertas</button>
-      <button class="tab"     onclick="go('com')"  id="tab-com">Comisionado</button>
-      <button class="tab"     onclick="go('cfg')"  id="tab-cfg">Configuración</button>
-    </div>
-    <div class="user-info">
-      <div class="user-badge">
-        <span id="ui_nombre">—</span>
-        <span class="role" id="ui_role">—</span>
-      </div>
-      <button class="btn-logout" onclick="doLogout()">Salir</button>
-    </div>
-  </div>
-  <div class="body"><div class="pane">
-
-    <!-- ══ FACTURA APORTADA ══ -->
-    <div class="page on" id="p-fac">
-      <div class="g2" style="margin-bottom:16px">
-        <div class="field"><label>Asesor Energético</label>
-          <input id="g_asesor" placeholder="Nombre completo" oninput="localStorage.setItem('el_asesor',this.value)">
-        </div>
-        <div class="field"><label>Fecha de Propuesta</label>
-          <input type="date" id="g_fecha">
-        </div>
-      </div>
-
-      <div class="sec">Subir factura</div>
-      <div class="upzone" id="upzone">
-        <input type="file" id="fInput" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple onchange="onFiles(this.files)">
-        <div class="up-icon">📂</div>
-        <div class="up-title">Arrastra tu factura aquí</div>
-        <div class="up-soft">o haz clic para seleccionar archivos</div>
-        <div class="up-sub" id="upSub">PDF o imágenes · Se permiten varias páginas</div>
-      </div>
-      <div id="chips" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
-      <div id="sb" style="display:none;margin-top:10px"></div>
-
-      <div id="prevSec" style="display:none;margin-top:12px">
-        <img id="prevImg" class="prev-img" style="display:none">
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn btn-ai" id="btnEx" onclick="extract()">✦ Extraer con IA</button>
-          <button class="btn btn-s btn-sm" onclick="resetUp()">Cambiar archivos</button>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:16px">
-        <div class="ct">Parámetros del CUPS</div>
-        <div class="g3">
-          <div class="field"><label>CONSUMO ANUAL TOTAL (kWh)</label>
-            <input type="number" id="f_consumo_anual" step="1" placeholder="Ej: 45000">
-          </div>
-          <div class="field"><label>POTENCIA CONTRATADA (kW)</label>
-            <input type="number" id="f_pot_cups" step=".001" placeholder="Ej: 25" onchange="syncPot()">
-          </div>
-          <div class="field"><label>TARIFA DETECTADA</label>
-            <select id="f_tar_cups" onchange="syncTar(this.value)" style="color:var(--acc2);font-weight:700">
-              <option value="2.0TD">2.0TD</option>
-              <option value="3.0TD">3.0TD</option>
-              <option value="6.1TD">6.1TD</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ REVISIÓN ══ -->
-    <div class="page" id="p-rev">
-      <div style="display:flex;gap:14px;margin-bottom:12px;font-size:11px;color:var(--t2)">
-        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(87,212,255,.5);border-radius:2px;margin-right:4px"></span>Extraído por IA</span>
-        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(245,200,66,.5);border-radius:2px;margin-right:4px"></span>Requiere verificación</span>
-      </div>
-
-      <div class="card">
-        <div class="ct">Datos del cliente</div>
-        <div class="g2">
-          <div class="field gfull"><label>CLIENTE / RAZÓN SOCIAL</label><input id="f_cli"></div>
-          <div class="field"><label>CUPS</label><input id="f_cups"></div>
-          <div class="field"><label>COMERCIALIZADORA ACTUAL</label><input id="f_com"></div>
-          <div class="field gfull"><label>DIRECCIÓN</label><input id="f_dir"></div>
-          <div class="field"><label>CÓDIGO POSTAL</label><input id="f_cp"></div>
-          <div class="field"><label>TARIFA</label>
-            <select id="f_tar" onchange="syncTar(this.value)" style="font-weight:700">
-              <option value="2.0TD">2.0TD</option>
-              <option value="3.0TD">3.0TD</option>
-              <option value="6.1TD">6.1TD</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="ct">Parámetros de facturación</div>
-        <div class="g3">
-          <div class="field"><label>POTENCIA CONTRATADA (kW)</label><input type="number" id="f_pot" step=".001" onchange="updTar()"></div>
-          <div class="field"><label>DÍAS FACTURADOS</label><input type="number" id="f_dias"></div>
-          <div class="field"><label>FECHA INICIO PERÍODO</label><input type="date" id="f_fi"></div>
-          <div class="field"><label>TOTAL FACTURA (€) ⚠</label><input type="number" id="f_tot" step=".01" class="unc"></div>
-          <div class="field"><label>IVA / IGIC (%)</label><input type="number" id="f_iva" value="21" step=".01"></div>
-          <div class="field"><label>IEE (%)</label><input type="number" id="f_iee" value="5.1126963" step=".0001"></div>
-          <div class="field"><label>IEE FACTURA ACTUAL (€)</label><input type="number" id="f_iee_act" step=".01" value="0"></div>
-          <div class="field"><label>IVA FACTURA ACTUAL (€)</label><input type="number" id="f_iva_act" step=".01" value="0"></div>
-          <div class="field"><label>DESCUENTO ENERGÍA ACTUAL (%)</label><input type="number" id="f_dto_en_act" step=".01" value="0"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="ct">Períodos de precio</div>
-        <div class="toggle-row">
-          <input type="checkbox" id="f_dos_periodos" onchange="togDosPeriodos()">
-          <label for="f_dos_periodos">Esta factura tiene múltiples períodos de precio</label>
-        </div>
-        <div id="dosPeriodosInfo" class="info-box" style="display:none">
-          Al activar esta opción, puedes añadir más de 1 línea por período de potencia y energía. La inteligencia artificial creará tantas filas como sub-períodos detecte.
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="ct" style="display:flex;justify-content:space-between;align-items:center">
-          <span>Término de potencia — P1 a P6 <span class="tag t" id="tarTag">2.0TD</span></span>
-          <div id="addPotBtn" style="display:none">
-            <select id="addPotSel" style="font-size:10px;padding:2px;border-radius:3px;background:var(--bg);color:var(--tx);border:1px solid var(--b1)"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option></select>
-            <button class="btn btn-s btn-sm" onclick="addPotL()">+ Fila</button>
-          </div>
-        </div>
-        <div class="warn-box" id="potHint" style="display:none">En 3.0TD/6.1TD cada periodo puede tener distinta potencia contratada. Ajusta los kW por periodo si es necesario.</div>
-        <table class="ptbl">
-          <thead><tr><th style="width:50px">PER</th><th>kW</th><th>IMPORTE (€)</th><th style="width:30px"></th></tr></thead>
-          <tbody id="potT"></tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="ct" style="display:flex;justify-content:space-between;align-items:center">
-          <span>Término de energía — P1 a P6</span>
-          <div id="addEnBtn" style="display:none">
-            <select id="addEnSel" style="font-size:10px;padding:2px;border-radius:3px;background:var(--bg);color:var(--tx);border:1px solid var(--b1)"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option></select>
-            <button class="btn btn-s btn-sm" onclick="addEnL()">+ Fila</button>
-          </div>
-        </div>
-        <table class="ptbl">
-          <thead><tr><th style="width:50px">PER</th><th>kWh</th><th>€/kWh</th><th style="width:30px"></th></tr></thead>
-          <tbody id="enT"></tbody>
-        </table>
-      </div>
-
-      <div class="card" id="lecCard">
-        <div class="ct" style="display:flex;justify-content:space-between;align-items:center;color:var(--acc2)">
-          <span>Lecturas Reales (Desglose para simulación)</span>
-          <div id="addLecBtn">
-            <select id="addLecSel" style="font-size:10px;padding:2px;border-radius:3px;background:var(--bg);color:var(--tx);border:1px solid var(--b1)"><option>P1</option><option>P2</option><option>P3</option><option>P4</option><option>P5</option><option>P6</option></select>
-            <button class="btn btn-s btn-sm" onclick="addLecL()">+ Fila</button>
-          </div>
-        </div>
-        <div style="font-size:11px;color:var(--t2);margin-bottom:10px;line-height:1.4">Opcional. Si la factura agrupó meses o no detalla kWh en Facturación, usa esta tabla para introducir las verdaderas lecturas de contador. La simulación de "Nueva Oferta" y su ahorro se basará en estos datos si existen.</div>
-        <table class="ptbl">
-          <thead><tr><th style="width:50px">PER</th><th>kWh</th><th style="width:30px"></th></tr></thead>
-          <tbody id="lecT"></tbody>
-        </table>
-      </div>
-
-      <!-- Autoconsumo -->
-      <div class="card">
-        <div class="ct">Autoconsumo</div>
-        <div class="toggle-row">
-          <input type="checkbox" id="f_tiene_autocon" onchange="togAutocon()">
-          <label for="f_tiene_autocon">Esta factura tiene autoconsumo</label>
-        </div>
-        <div id="autoconFields" style="display:none">
-          <div class="g3">
-            <div class="field"><label>kWh GENERADOS / COMPENSADOS</label><input type="number" id="f_aut_kwh" step=".001" value="0"></div>
-            <div class="field"><label>€/kWh PRECIO COMPENSACIÓN ACTUAL</label><input type="number" id="f_aut_precio" step=".000001" value="0"></div>
-            <div class="field"><label>TOTAL COMPENSACIÓN (€)</label><input type="number" id="f_aut_total" step=".01" value="0" readonly style="color:var(--ok)"></div>
-          </div>
-          <div style="font-size:11px;color:var(--t2);margin-top:8px">La compensación se calculará automáticamente: kWh × €/kWh</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="ct">Conceptos adicionales</div>
-        <div class="g2">
-          <div class="field"><label>ENERGÍA REACTIVA (€)</label><input type="number" id="f_rea" value="0" step=".01"></div>
-          <div class="field"><label>EXCESO POTENCIA (€)</label><input type="number" id="f_exc" value="0" step=".01"></div>
-          <div class="field"><label>ALQUILER EQUIPOS (€)</label><input type="number" id="f_alq" value="0" step=".01"></div>
-          <div class="field"><label>BONO SOCIAL / FINANCIACIÓN (€)</label><input type="number" id="f_bon" value="0" step=".01"></div>
-          <div class="field"><label>SERVICIO / OTROS (Sin IVA) (€)</label><input type="number" id="f_ser" value="0" step=".01"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="ct">Otros conceptos sujetos a IEE</div>
-        <div id="ieeExtras"></div>
-        <button class="btn btn-s btn-sm" style="margin-top:6px" onclick="addIeeExtra()">+ Añadir concepto</button>
-      </div>
-
-      <div class="abar">
-        <button class="btn btn-p" onclick="go('cmp')">Siguiente → Comparativa</button>
-        <button class="btn btn-s" onclick="go('fac')">← Volver</button>
-      </div>
-    </div>
-
-    <!-- ══ COMPARATIVA ══ -->
-    <div class="page" id="p-cmp">
-      <div class="cmp-grid">
-        <div>
-          <div class="sec">Facturación actual</div>
-          <div class="card" id="actCard"><div class="empty"><div class="eico">📋</div>Cargando...</div></div>
-          <div class="sec" style="margin-top:18px">Ranking de ofertas</div>
-          <div id="rankDiv"></div>
-        </div>
-        <div>
-          <div class="sec">Oferta seleccionada</div>
-          <div id="detDiv"><div class="empty"><div class="eico">👈</div>Selecciona una oferta</div></div>
-          <div class="abar" style="flex-direction:column;margin-top:10px">
-            <button class="btn btn-p" style="width:100%" onclick="genPDF()">📄 Generar PDF para comercial</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ OFERTAS DB (solo admin) ══ -->
-    <div class="page" id="p-ofr">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-        <div>
-          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">Base de Datos de Ofertas</div>
-          <div style="color:var(--t2);font-size:11px;margin-top:3px">Tarifas disponibles · se guardan en archivo local</div>
-        </div>
-        <button class="btn btn-p" onclick="openMod(null)">+ Nueva Oferta</button>
-      </div>
-      <div id="ofrList"></div>
-    </div>
-
-    <!-- ══ CONFIGURACIÓN ══ -->
-    <div class="page" id="p-cfg">
-      <div class="cfg-section" id="cfg-ia">
-        <div class="cfg-title">🤖 Configuración de Inteligencia Artificial</div>
-        <div class="g2">
-          <div class="field"><label>PROVEEDOR DE IA</label>
-            <select id="cfg_provider" onchange="uiTogIA()">
-              <option value="auto">Automático (IA Hub)</option>
-              <option value="anthropic">Claude (Anthropic)</option>
-              <option value="google">Gemini (Google AI Studio - GRATIS)</option>
-              <option value="openai">OpenAI (GPT-4o)</option>
-              <option value="groq">Groq (Llama 3 - Muy Rápido)</option>
-            </select>
-          </div>
-          <div class="field"><label>MODELO</label>
-            <input id="cfg_model" placeholder="Auto (Recomendado)">
-            <span style="font-size:10px; color:var(--t3); margin-top:-5px">Deja vacío para usar siempre la mejor versión disponible.</span>
-          </div>
-        </div>
-
-        <div id="ia_anthropic" class="ia-fields">
-          <div class="field gfull"><label>ANTHROPIC API KEY</label>
-            <input type="password" id="cfg_apikey" placeholder="sk-ant-...">
-          </div>
-        </div>
-
-        <div id="ia_google" class="ia-fields" style="display:none">
-          <div class="field gfull"><label>GEMINI API KEY</label>
-            <input type="password" id="cfg_geminikey" placeholder="AIza...">
-          </div>
-        </div>
-
-        <div id="ia_openai" class="ia-fields" style="display:none">
-          <div class="field gfull"><label>OPENAI / CUSTOM API KEY</label>
-            <input type="password" id="cfg_openaikey" placeholder="sk-...">
-          </div>
-          <div class="field gfull"><label>API BASE URL (Opcional para Groq/OpenRouter)</label>
-            <input id="cfg_openaiurl" placeholder="https://api.openai.com/v1">
-          </div>
-        </div>
-
-        <div class="abar" style="border:none;padding:10px 0 0 0">
-          <button class="btn btn-p btn-sm" onclick="saveConfig()">Guardar Configuración de IA</button>
-        </div>
-      </div>
-
-      <div class="cfg-section">
-        <div class="cfg-title">🌐 Idioma</div>
-        <div class="g3">
-          <div class="field"><label>IDIOMA DE LA INTERFAZ</label>
-            <select id="cfg_idioma" onchange="saveConfig()">
-              <option value="es">🇪🇸 Español</option>
-              <option value="en">🇬🇧 English</option>
-              <option value="ca">🏴 Català</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div class="cfg-section" id="cfg-users">
-        <div class="cfg-title" id="cfg-users-title">👤 Gestión de Usuarios</div>
-        <div id="cfg-users-content"></div>
-        <div class="abar" style="border:none;padding:10px 0 0 0" id="cfg-users-addbar">
-          <button class="btn btn-p btn-sm" onclick="openUserMod(null)">+ Nuevo usuario</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- PAGE COMISIONADO (Centralized) -->
-    <div class="page" id="p-com">
-      <div style="display:flex;gap:20px;height:calc(100vh - 180px)">
-        <div style="width:240px;display:flex;flex-direction:column;gap:12px">
-          <div class="sec" style="margin:0;display:flex;justify-content:space-between;align-items:center">
-            Comercializadoras
-            <button class="btn btn-p btn-sm" onclick="addComCo()">+ Añadir</button>
-          </div>
-          <div id="comList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
-        </div>
-        <div style="flex:1;display:flex;flex-direction:column;gap:16px">
-          <div id="comEditorEmpty" class="empty" style="margin-top:0">
-            <div class="eico">🏦</div>
-            Selecciona una comercializadora para configurar sus comisiones.
-          </div>
-          <div id="comEditor" class="card" style="display:none;margin:0;flex:1;overflow-y:auto">
-            <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--b1);padding-bottom:12px;margin-bottom:16px">
-              <h3 id="comCoName" style="font-family:'Outfit';color:var(--tx);margin:0">Nombre Empresa</h3>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-d btn-sm" onclick="delComCo()">Eliminar Empresa</button>
-                <button class="btn btn-p btn-sm" onclick="saveComs()">Guardar Cambios</button>
-              </div>
+    <!-- ══ LOGIN SECTION ══ -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <div class="login-brand">ESTUDIO <span>LUZ</span></div>
+            <div class="login-sub">Gestion Group · Soluciones Energéticas</div>
+            
+            <div class="form-group">
+                <label>Correo Electrónico</label>
+                <input type="email" id="l_email" class="form-input" placeholder="usuario@gestiongroup.es" autocomplete="username">
             </div>
-            <div class="sec">Escalado de Comisiones (Tramos)</div>
-            <div class="info-box" style="margin-bottom:12px">Define las reglas para esta empresa. El sistema aplicará la primera regla que coincida con la potencia y el consumo del cliente.</div>
-            <table class="ptbl">
-              <thead>
-                <tr>
-                  <th>Pot Min</th>
-                  <th>Pot Max</th>
-                  <th>Cons Min</th>
-                  <th>Cons Max</th>
-                  <th>Filtro Plan (Opcional)</th>
-                  <th>Valor</th>
-                  <th style="width:100px">Tipo</th>
-                  <th style="width:30px"></th>
-                </tr>
-              </thead>
-              <tbody id="comTramosT"></tbody>
-            </table>
-            <button class="btn btn-s btn-sm" onclick="addComTramo()" style="margin-top:12px">+ Añadir Tramo</button>
-          </div>
+            
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="l_pass" class="form-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') doLogin()">
+            </div>
+            
+            <div id="l_err" class="login-err">Credenciales incorrectas</div>
+            
+            <button class="btn-login" onclick="doLogin()">Acceder a la plataforma</button>
         </div>
-      </div>
     </div>
 
-  </div></div>
-</div>
+    <!-- ══ MAIN SHELL ══ -->
+    <div class="shell" id="shell">
+        <div class="topbar">
+            <div class="top-logo">⚡ ESTUDIO <span>LUZ</span></div>
+            
+            <div class="nav-tabs">
+                <div class="nav-tab active" onclick="go('fac')" id="tab-fac">① Factura</div>
+                <div class="nav-tab" onclick="go('rev')" id="tab-rev">② Revisión</div>
+                <div class="nav-tab" onclick="go('cmp')" id="tab-cmp">③ Comparativa</div>
+                <div class="nav-tab" onclick="go('ofr')" id="tab-ofr">Ofertas</div>
+                <div class="nav-tab" onclick="go('cfg')" id="tab-cfg">Ajustes</div>
+            </div>
 
-<!-- MODAL OFERTA -->
-<div class="modal-bg" id="modalOfr">
-  <div class="modal">
-    <div class="modal-title" id="modOfrT">Nueva Oferta</div>
-    <div class="g2">
-      <div class="field"><label>NOMBRE DE LA OFERTA</label><input id="o_nom" placeholder="Ej: Plan Fijo Premium"></div>
-      <div class="field"><label>COMERCIALIZADORA</label><input id="o_com" placeholder="Ej: Iberdrola"></div>
-      <div class="field"><label>TARIFA</label>
-        <select id="o_tar">
-          <option value="2.0TD">2.0TD</option>
-          <option value="3.0TD">3.0TD</option>
-          <option value="6.1TD">6.1TD</option>
-          <option value="todas">Todas</option>
-        </select>
-      </div>
-      <div class="field"><label>TIPO DE PRECIO</label>
-        <select id="o_tip"><option value="FIJO">PRECIO FIJO</option><option value="INDEXADO">INDEXADO</option><option value="VARIABLE">VARIABLE</option></select>
-      </div>
-      <div class="field"><label>PERMANENCIA</label><input id="o_per" placeholder="Sin permanencia / 12 meses"></div>
-      <div class="field"><label>VALIDEZ (días)</label><input type="number" id="o_val" value="7" min="1"></div>
-    </div>
+            <div class="user-info">
+                <span id="ui_nombre">Admin</span>
+                <button class="logout-btn" onclick="doLogout()">Cerrar Sesión</button>
+            </div>
+        </div>
 
-    <div class="sec" style="margin-top:14px">Rango de aplicación</div>
-    <div class="g4">
-      <div class="field"><label>POT. MÍNIMA (kW)</label><input type="number" id="o_pmin" value="0" step=".001"></div>
-      <div class="field"><label>POT. MÁXIMA (kW)</label><input type="number" id="o_pmax" value="9999" step=".001"></div>
-      <div class="field"><label>CONSUMO MÍN. (kWh/año)</label><input type="number" id="o_cmin" value="0" step="1"></div>
-      <div class="field"><label>CONSUMO MÁX. (kWh/año)</label><input type="number" id="o_cmax" value="99999999" step="1"></div>
-    </div>
+        <div class="main-container">
+            <!-- PAGE: FACTURA -->
+            <div class="page active" id="p-fac">
+                <div class="card">
+                    <div class="card-header">Carga de Documentación</div>
+                    <div class="upzone" id="upzone">
+                        <div class="upzone-icon">📂</div>
+                        <div style="font-weight: 700; margin-bottom: 4px;">Arrastra la factura o haz clic aquí</div>
+                        <div style="color: var(--slate-400); font-size: 13px;">PDF, JPG o PNG soportados</div>
+                        <input type="file" id="fInput" style="display:none" multiple onchange="onFiles(this.files)">
+                    </div>
+                    <div id="chips" style="margin-top:20px; display:flex; gap:10px;"></div>
+                </div>
 
-    <div class="sec" style="margin-top:14px">Comisión</div>
-    <div class="g2">
-      <div class="field"><label>TIPO DE COMISIÓN</label>
-        <select id="o_tco" onchange="togComision()">
-          <option value="fijo">€ Fijo por contrato</option>
-          <option value="consumo">Por consumo (Coef. × kWh × FEE / 1000)</option>
-        </select>
-      </div>
-      <div class="field" id="f_comfijo"><label>COMISIÓN FIJA (€)</label><input type="number" id="o_co" step=".01" placeholder="Ej: 280"></div>
-    </div>
-    <div class="g3" id="f_comconsumo" style="display:none">
-      <div class="field"><label>COEFICIENTE REPARTO (%)</label><input type="number" id="o_coef" step=".01" placeholder="Ej: 85"></div>
-      <div class="field"><label>FEE (€/MWh)</label><input type="number" id="o_fee" step=".01" placeholder="Ej: 4.5"></div>
-      <div class="field"><label>RESULTADO (se calcula automático)</label><input id="o_co_preview" readonly style="color:var(--acc)"></div>
-    </div>
+                <div class="card">
+                    <div class="card-header">Parámetros del CUPS</div>
+                    <div class="grid-3">
+                        <div class="field-group">
+                            <label class="field-label">Consumo Anual (kWh)</label>
+                            <input type="number" id="f_consumo_anual" class="form-input" placeholder="Ej: 45000">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Potencia Contratada (kW)</label>
+                            <input type="number" id="f_pot_cups" class="form-input" placeholder="Ej: 15.0">
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Tarifa Detectada</label>
+                            <select id="f_tar_cups" class="form-input">
+                                <option value="2.0TD">2.0TD</option>
+                                <option value="3.0TD">3.0TD</option>
+                                <option value="6.1TD">6.1TD</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <div class="g2" style="margin-top:10px">
-      <div class="field"><label>COMPENSACIÓN AUTOCONSUMO (€/kWh)</label><input type="number" id="o_comp" step=".0001" value="0"></div>
-      <div class="field"><label>DESCUENTO POTENCIA (%)</label><input type="number" id="o_dp" step=".1" value="0"></div>
-    </div>
-    <div class="g2">
-      <div class="field"><label>DESCUENTO ENERGÍA GLOBAL (%)</label><input type="number" id="o_de" step=".1" value="0"></div>
-      <div style="display:flex;align-items:center;gap:8px;padding-top:22px">
-        <input type="checkbox" id="o_dpp" onchange="togDpp()" style="accent-color:var(--acc)">
-        <label for="o_dpp" style="font-size:11px;color:var(--t2);cursor:pointer">Discriminar dto. energía por periodo</label>
-      </div>
-    </div>
-    <div id="dppDet" style="display:none;margin-top:8px">
-      <table class="ptbl"><thead><tr><th>P1 %</th><th>P2 %</th><th>P3 %</th><th>P4 %</th><th>P5 %</th><th>P6 %</th></tr></thead>
-      <tbody><tr>
-        <td><input type="number" id="o_de1" step=".1" value="0"></td>
-        <td><input type="number" id="o_de2" step=".1" value="0"></td>
-        <td><input type="number" id="o_de3" step=".1" value="0"></td>
-        <td><input type="number" id="o_de4" step=".1" value="0"></td>
-        <td><input type="number" id="o_de5" step=".1" value="0"></td>
-        <td><input type="number" id="o_de6" step=".1" value="0"></td>
-      </tr></tbody></table>
+            <!-- OTHER PAGES WILL BE RENDERED VIA JS -->
+            <div class="page" id="p-rev"></div>
+            <div class="page" id="p-cmp"></div>
+            <div class="page" id="p-ofr"></div>
+            <div class="page" id="p-cfg"></div>
+        </div>
     </div>
 
-    <div class="sec" style="margin-top:14px">Precios de potencia (€/kW/día)</div>
-    <table class="ptbl"><thead><tr><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>P6</th></tr></thead>
-    <tbody><tr>
-      <td><input type="number" id="o_pp1" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_pp2" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_pp3" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_pp4" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_pp5" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_pp6" step=".000001" placeholder="0"></td>
-    </tr></tbody></table>
-
-    <div class="sec" style="margin-top:12px">Precios de energía (€/kWh)</div>
-    <table class="ptbl"><thead><tr><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>P6</th></tr></thead>
-    <tbody><tr>
-      <td><input type="number" id="o_ep1" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_ep2" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_ep3" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_ep4" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_ep5" step=".000001" placeholder="0"></td>
-      <td><input type="number" id="o_ep6" step=".000001" placeholder="0"></td>
-    </tr></tbody></table>
-
-    <div class="modal-foot">
-      <button class="btn btn-s" onclick="closeMod('modalOfr')">Cancelar</button>
-      <button class="btn btn-p" onclick="saveOfr()">Guardar Oferta</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-bg" id="modalUser">
-  <div class="modal" style="width:420px">
-    <div class="modal-title" id="modUserT">Nuevo Usuario</div>
-    <div class="field" style="margin-bottom:12px"><label>NOMBRE</label><input id="u_nombre" placeholder="Ej: Juan García"></div>
-    <div class="field" style="margin-bottom:12px"><label>EMAIL</label><input type="email" id="u_email" placeholder="juan@empresa.es"></div>
-    <div class="field" style="margin-bottom:12px"><label>CONTRASEÑA <span style="color:var(--t3);font-size:10px">(dejar vacío para no cambiar)</span></label><input type="password" id="u_pass" placeholder="••••••••"></div>
-    <div class="field" style="margin-bottom:12px" id="u_role_field"><label>PERFIL</label>
-      <select id="u_role"><option value="comercial">Comercial</option><option value="admin">Administración</option></select>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-s" onclick="closeMod('modalUser')">Cancelar</button>
-      <button class="btn btn-p" onclick="saveUser()">Guardar</button>
-    </div>
-  </div>
-</div>
-
-<script src="script.js?v=final_fix_v3"></script>
+    <script src="script.js?v=senior_v1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </body>
 </html>
