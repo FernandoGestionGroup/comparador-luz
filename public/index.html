@@ -10,183 +10,238 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
+            /* Palette Luxury Teal */
             --primary: #2cb5ad;
+            --primary-light: rgba(44, 181, 173, 0.08);
             --primary-dark: #249992;
             --slate-900: #0f172a;
+            --slate-800: #1e293b;
             --slate-600: #475569;
             --slate-400: #94a3b8;
             --slate-100: #f1f5f9;
             --white: #ffffff;
             --error: #e11d48;
             --radius: 12px;
-            --shadow-subtle: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --shadow-heavy: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --radius-lg: 20px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: #f8fafc;
-            color: var(--slate-900);
-            min-height: 100vh;
-            line-height: 1.5;
-        }
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: var(--slate-900); min-height: 100vh; line-height: 1.6; }
 
         /* --- LOGIN --- */
-        .login-screen { position: fixed; inset: 0; background: radial-gradient(circle at top left, #f1f5f9, #ffffff, #e2e8f0); display: flex; align-items: center; justify-content: center; z-index: 10000; }
-        .login-card { background: var(--white); width: 100%; max-width: 440px; padding: 48px; border-radius: 24px; box-shadow: var(--shadow-heavy); border: 1px solid var(--slate-100); text-align: center; }
-        .login-brand { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; color: var(--slate-900); margin-bottom: 8px; }
+        .login-screen { position: fixed; inset: 0; background: radial-gradient(circle at 10% 20%, #f1f5f9 0%, #ffffff 90%); display: flex; align-items: center; justify-content: center; z-index: 10000; transition: opacity 0.5s ease; }
+        .login-card { background: var(--white); width: 100%; max-width: 440px; padding: 50px; border-radius: 30px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1); border: 1px solid var(--slate-100); text-align: center; }
+        .login-brand { font-family: 'Outfit', sans-serif; font-size: 34px; font-weight: 800; color: var(--slate-900); margin-bottom: 8px; letter-spacing: -0.03em; }
         .login-brand span { color: var(--primary); }
-        .login-sub { font-size: 11px; text-transform: uppercase; color: var(--slate-400); letter-spacing: 0.15em; font-weight: 600; margin-bottom: 40px; }
+        .login-sub { font-size: 11px; text-transform: uppercase; color: var(--slate-400); letter-spacing: 0.2em; font-weight: 700; margin-bottom: 40px; }
         .form-group { text-align: left; margin-bottom: 24px; }
-        .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--slate-600); margin-bottom: 8px; }
-        .form-input { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--slate-100); font-family: inherit; font-size: 14px; transition: all 0.2s; background: #fcfdfe; }
-        .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(44, 181, 173, 0.1); background: var(--white); }
-        .btn-login { width: 100%; padding: 16px; border-radius: 12px; background: var(--primary); color: var(--white); border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.3s; margin-top: 8px; }
-        .login-err { color: var(--error); font-size: 13px; font-weight: 600; margin-top: 16px; display: none; }
+        .form-group label { display: block; font-size: 12px; font-weight: 700; color: var(--slate-600); margin-bottom: 10px; }
+        .form-input { width: 100%; padding: 14px 18px; border-radius: 12px; border: 1.5px solid var(--slate-100); font-size: 14px; transition: all 0.2s; background: #fcfdfe; }
+        .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); background: var(--white); }
+        .btn-login { width: 100%; padding: 16px; border-radius: 14px; background: var(--primary); color: var(--white); border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
+        .btn-login:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 12px 20px -5px rgba(44, 181, 173, 0.3); }
 
-        /* --- SHELL --- */
-        .shell { display: none; flex-direction: column; height: 100vh; }
-        .topbar { height: 72px; background: var(--white); border-bottom: 1px solid var(--slate-100); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
-        .top-logo { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: var(--slate-900); display: flex; align-items: center; gap: 8px; }
+        /* --- UI SHELL --- */
+        .shell { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+        .topbar { height: 80px; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid var(--slate-100); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-shadow: var(--shadow-sm); z-index: 100; }
+        .top-logo { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 800; color: var(--slate-900); display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em; }
         .top-logo span { color: var(--primary); }
-        .nav-tabs { display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 12px; }
-        .nav-tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--slate-600); border: none; background: transparent; transition: all 0.2s; }
-        .nav-tab.active { background: var(--white); color: var(--primary); box-shadow: var(--shadow-subtle); }
-        .user-info { display: flex; align-items: center; gap: 20px; font-size: 13px; font-weight: 600; }
-        .user-badge-wrap { display: flex; flex-direction: column; text-align: right; }
-        .user-role-badge { font-size: 10px; color: var(--slate-400); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .nav-tabs { display: flex; gap: 6px; background: #f1f5f9; padding: 6px; border-radius: 14px; }
+        .nav-tab { padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--slate-600); border: none; background: transparent; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .nav-tab:hover { color: var(--slate-900); background: rgba(255,255,255,0.4); }
+        .nav-tab.active { background: var(--white); color: var(--primary); box-shadow: var(--shadow-md); }
+
+        .user-area { display: flex; align-items: center; gap: 24px; }
+        .user-meta { display: flex; flex-direction: column; text-align: right; line-height: 1.2; }
+        .user-name { font-size: 13px; font-weight: 700; color: var(--slate-900); }
+        .user-role { font-size: 10px; color: var(--slate-400); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+        .btn-exit { padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--slate-100); font-weight: 700; font-size: 11px; cursor: pointer; transition: all 0.2s; background: white; color: var(--slate-400); }
+        .btn-exit:hover { background: #fff1f2; color: var(--error); border-color: #fecaca; }
 
         /* --- CONTENT --- */
-        .main-container { flex: 1; overflow-y: auto; padding: 40px; background: #f8fafc; }
-        .page { display: none; max-width: 1200px; margin: 0 auto; animation: fadeIn 0.4s ease; }
-        .page.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .main-pane { flex: 1; overflow-y: auto; padding: 40px; background: #f8fafc; }
+        .page { display: none; max-width: 1300px; margin: 0 auto; }
+        .page.active { display: block; animation: pageIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .card { background: var(--white); border-radius: 20px; padding:35px; border: 1px solid var(--slate-100); box-shadow: var(--shadow-subtle); margin-bottom: 32px; }
-        .card-header { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
-        .card-header::before { content: ''; width: 4px; height: 18px; background: var(--primary); border-radius: 2px; }
+        /* --- CARDS & FORMS --- */
+        .lux-card { background: var(--white); border-radius: 24px; padding: 40px; border: 1px solid var(--slate-100); box-shadow: var(--shadow-md); margin-bottom: 30px; position: relative; }
+        .lux-card-header { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 800; color: var(--slate-900); margin-bottom: 30px; display: flex; align-items: center; gap: 14px; }
+        .lux-card-header::before { content: ''; width: 5px; height: 18px; background: var(--primary); border-radius: 10px; }
 
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-        .field-group { margin-bottom: 15px; }
-        .field-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--slate-400); margin-bottom: 6px; display: block; letter-spacing: 0.5px; }
+        .lux-grid { display: grid; gap: 30px; }
+        .lux-grid-2 { grid-template-columns: 1fr 1fr; }
+        .lux-grid-3 { grid-template-columns: repeat(3, 1fr); }
 
-        .upzone { border: 2px dashed var(--slate-100); border-radius: 16px; padding: 50px; text-align: center; background: #fcfdfe; transition: all 0.3s; cursor: pointer; }
-        .upzone:hover { border-color: var(--primary); background: #f0fdfa; }
+        .lux-field { display: flex; flex-direction: column; gap: 8px; }
+        .lux-label { font-size: 11px; font-weight: 800; color: var(--slate-400); text-transform: uppercase; letter-spacing: 1px; }
 
-        .btn-trash { background: #fff1f2; color: #e11d48; border: 1px solid #fecaca; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-        .btn-trash:hover { background: #e11d48; color: white; border-color: #e11d48; transform: scale(1.1); }
+        .lux-upbox { 
+            border: 2px dashed #e2e8f0; border-radius: 20px; padding: 60px; text-align: center; 
+            background: #fbfcfe; transition: all 0.3s; cursor: pointer; position: relative; overflow: hidden;
+        }
+        .lux-upbox:hover { border-color: var(--primary); background: #f0fdfa; transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.03); }
+        .lux-upbox i { font-size: 40px; display: block; margin-bottom: 15px; grayscale: 1; opacity: 0.5; }
 
-        #sb { position: fixed; bottom: 30px; right: 30px; padding: 12px 24px; border-radius: 10px; color: white; font-weight: 600; display: none; z-index: 100001; }
-        .sb-ok { background: #10b981; } .sb-err { background: #ef4444; } .sb-load { background: var(--slate-900); }
+        /* --- FUNCTIONAL BUTTONS --- */
+        .lux-btn-group { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 40px; }
+        .btn-lux { 
+            height: 52px; padding: 0 32px; border-radius: 14px; font-weight: 700; font-size: 14px;
+            cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-lux-primary { background: var(--primary); color: white; border: none; box-shadow: 0 8px 15px -3px rgba(44, 181, 173, 0.4); }
+        .btn-lux-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 12px 20px -5px rgba(44, 181, 173, 0.5); }
         
-        .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th { text-align: left; font-size: 10px; text-transform: uppercase; color: var(--slate-400); padding: 12px; border-bottom: 2px solid var(--slate-100); }
-        .data-table td { padding: 10px; border-bottom: 1px solid var(--slate-100); }
+        .btn-lux-secondary { background: white; color: var(--slate-600); border: 2px solid var(--slate-100); }
+        .btn-lux-secondary:hover { border-color: var(--slate-400); color: var(--slate-900); background: #f8fafc; }
+
+        /* --- SNACKBAR --- */
+        #sb { position: fixed; bottom: 40px; right: 40px; padding: 16px 30px; border-radius: 16px; color: white; font-weight: 700; font-size: 14px; display: none; z-index: 1000000; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2); animation: sbIn 0.4s cubic-bezier(0.17, 0.89, 0.32, 1.28); }
+        @keyframes sbIn { from { transform: translateX(50px) scale(0.9); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
+        .sb-ok { background: #10b981; } .sb-err { background: var(--error); } .sb-load { background: var(--slate-900); }
+
+        /* --- PREVIEW --- */
+        .preview-img { max-width: 100%; max-height: 350px; border-radius: 15px; margin-bottom: 25px; box-shadow: var(--shadow-lg); border: 4px solid white; display: none; }
+        
+        /* DATA TABLE */
+        .lux-table { width: 100%; border-collapse: collapse; }
+        .lux-table th { text-align: left; padding: 15px 20px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--slate-400); border-bottom: 2px solid #f1f5f9; }
+        .lux-table td { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
     </style>
 </head>
 <body>
 
     <div id="sb"></div>
 
-    <!-- ══ LOGIN ══ -->
+    <!-- ══ LOGIN SECTION ══ -->
     <div class="login-screen" id="loginScreen">
         <div class="login-card">
             <div class="login-brand">ESTUDIO <span>LUZ</span></div>
-            <div class="login-sub">Gestion Group · Soluciones Energéticas</div>
-            <div class="form-group"><label>Correo Electrónico</label><input type="email" id="l_email" class="form-input"></div>
-            <div class="form-group"><label>Contraseña</label><input type="password" id="l_pass" class="form-input" onkeydown="if(event.key==='Enter') doLogin()"></div>
-            <div id="l_err" class="login-err">Credenciales incorrectas</div>
-            <button class="btn-login" onclick="doLogin()">Acceder</button>
+            <div class="login-sub">Soluciones Energéticas Premium</div>
+            <div class="form-group"><label>CORREO CORPORATIVO</label><input type="email" id="l_email" class="form-input" placeholder="usuario@gestiongroup.es"></div>
+            <div class="form-group"><label>CONTRASEÑA</label><input type="password" id="l_pass" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()"></div>
+            <div id="l_err" style="color:var(--error); font-size:12px; font-weight:700; margin-bottom:20px; display:none;">Credenciales incorrectas</div>
+            <button class="btn-login" onclick="doLogin()">ACCEDER AL SISTEMA</button>
         </div>
     </div>
 
-    <!-- ══ APP SHELL ══ -->
+    <!-- ══ MASTER SHELL ══ -->
     <div class="shell" id="shell">
-        <div class="topbar">
+        <header class="topbar">
             <div class="top-logo">⚡ ESTUDIO <span>LUZ</span></div>
-            <div class="nav-tabs">
-                <div class="nav-tab active" onclick="go('fac')" id="tab-fac">① Factura</div>
-                <div class="nav-tab" onclick="go('rev')" id="tab-rev">② Revisión</div>
-                <div class="nav-tab" onclick="go('cmp')" id="tab-cmp">③ Comparativa</div>
-                <div class="nav-tab" onclick="go('ofr')" id="tab-ofr">Ofertas</div>
-                <div class="nav-tab" onclick="go('com')" id="tab-com">Comisiones</div>
-                <div class="nav-tab" onclick="go('cfg')" id="tab-cfg">Ajustes</div>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" onclick="go('fac')" id="tab-fac">① Factura</button>
+                <button class="nav-tab" onclick="go('rev')" id="tab-rev">② Revisión</button>
+                <button class="nav-tab" onclick="go('cmp')" id="tab-cmp">③ Comparativa</button>
+                <button class="nav-tab" onclick="go('ofr')" id="tab-ofr">Ofertas</button>
+                <button class="nav-tab" onclick="go('com')" id="tab-com">Comisiones</button>
+                <button class="nav-tab" onclick="go('cfg')" id="tab-cfg">Ajustes</button>
+            </nav>
+            <div class="user-area">
+                <div class="user-meta"><span id="ui_nombre" class="user-name">Administrador</span><span id="ui_role" class="user-role">Admin</span></div>
+                <button class="btn-exit" onclick="doLogout()">Salir</button>
             </div>
-            <div class="user-info">
-                <div class="user-badge-wrap"><span id="ui_nombre">Admin</span><span id="ui_role" class="user-role-badge">Admin</span></div>
-                <button class="logout-btn" onclick="doLogout()">Salir</button>
-            </div>
-        </div>
+        </header>
 
-        <div class="main-container">
-            <!-- PAGE FACTURA -->
-            <div class="page active" id="p-fac">
-                <div class="card"><div class="card-header">Identificación</div>
-                <div class="grid-2">
-                    <div class="field-group"><label class="field-label">Asesor</label><input type="text" id="g_asesor" class="form-input"></div>
-                    <div class="field-group"><label class="field-label">Fecha</label><input type="date" id="g_fecha" class="form-input"></div>
-                </div></div>
-                <div class="card"><div class="card-header">Carga de Factura</div>
-                <div class="upzone" onclick="$('fInput').click()"><div style="font-size:30px">📂</div><b>Haz clic para subir archivos</b><input type="file" id="fInput" style="display:none" onchange="onFiles(this.files)"></div>
-                <div id="chips" style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap"></div>
-                <div id="prevSec" style="display:none; margin-top:25px; text-align:center;">
-                    <img id="prevImg" style="max-width:100%; max-height:280px; border-radius:12px; margin-bottom:20px; display:none; box-shadow: var(--shadow-subtle);">
-                    <div style="display:flex; justify-content:center; gap:12px;">
-                        <button class="btn-login" id="btnEx" onclick="extract()" style="max-width:280px">✦ Extraer Datos con IA</button>
-                        <button style="background:#f1f5f9; color:var(--slate-600); border:1px solid var(--slate-100); padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:600; font-size:12px;" onclick="resetUp()">✕ Cambiar archivos</button>
+        <main class="main-pane">
+            <!-- PAGE: FACTURA -->
+            <section class="page active" id="p-fac">
+                <div class="lux-card">
+                    <div class="lux-card-header">Detalle de Propuesta</div>
+                    <div class="lux-grid lux-grid-2">
+                        <div class="lux-field"><label class="lux-label">Asesor Comercial</label><input type="text" id="g_asesor" class="form-input" placeholder="Nombre completo"></div>
+                        <div class="lux-field"><label class="lux-label">Fecha de Estudio</label><input type="date" id="g_fecha" class="form-input"></div>
                     </div>
-                </div></div>
-                <div class="card"><div class="card-header">CUPS</div>
-                <div class="grid-3">
-                    <div class="field-group"><label class="field-label">Consumo Anual</label><input type="number" id="f_consumo_anual" class="form-input"></div>
-                    <div class="field-group"><label class="field-label">Potencia</label><input type="number" id="f_pot" class="form-input"></div>
-                    <div class="field-group"><label class="field-label">Tarifa</label><select id="f_tar" class="form-input"><option value="2.0TD">2.0TD</option><option value="3.0TD">3.0TD</option><option value="6.1TD">6.1TD</option></select></div>
-                </div></div>
-            </div>
-
-            <!-- PAGE REVISION -->
-            <div class="page" id="p-rev">
-                <div class="card"><div class="card-header">Datos Extraídos</div><div class="grid-3">
-                    <div class="field-group"><label class="field-label">Cliente</label><input id="f_cli" class="form-input"></div>
-                    <div class="field-group"><label class="field-label">CUPS ID</label><input id="f_cups" class="form-input"></div>
-                    <input id="f_com" style="display:none"><input id="f_dir" style="display:none"><input id="f_cp" style="display:none"><input id="f_dias" style="display:none"><input id="f_tot" style="display:none">
-                </div></div>
-                <div class="card"><div class="card-header">Consumos</div><table class="data-table"><thead><tr><th>Periodo</th><th>Potencia</th><th>Energía</th></tr></thead><tbody id="potT"></tbody></table><div id="enT" style="display:none"></div><div id="lecT" style="display:none"></div></div>
-                <div style="display:none"><input id="f_iva"><input id="f_iee"><input id="f_iva_act"><input id="f_iee_act"><input id="f_dto_en_act"><input id="f_rea"><input id="f_exc"><input id="f_alq"><input id="f_bon"><input id="f_ser"><input type="checkbox" id="f_tiene_autocon"><div id="autoconFields"><input id="f_aut_kwh"><input id="f_aut_precio"><input id="f_aut_total"></div></div>
-            </div>
-
-            <!-- PAGE CMP -->
-            <div class="page" id="p-cmp"><div class="grid-2"><div class="card"><div class="card-header">Ranking</div><div id="rankDiv"></div></div><div class="card"><div class="card-header">Detalle</div><div id="detDiv"></div></div></div></div>
-
-            <!-- PAGE OFR -->
-            <div class="page" id="p-ofr"><div class="card"><div class="card-header">Ofertas Base de Datos</div><div id="ofrList"></div></div></div>
-
-            <!-- PAGE COM -->
-            <div class="page" id="p-com"><div class="grid-2"><div class="card"><div class="card-header">Empresas</div><div id="comList"></div></div><div class="card" id="comEditor" style="display:none"><div class="card-header" id="comCoName">Comercializadora</div><table class="data-table"><thead><tr><th>P.Min</th><th>P.Max</th><th>C.Min</th><th>C.Max</th><th>Filtro</th><th>Valor</th><th>Tipo</th></tr></thead><tbody id="comTramosT"></tbody></table></div><div id="comEditorEmpty">Selecciona empresa</div></div></div>
-
-            <!-- PAGE CFG -->
-            <div class="page" id="p-cfg">
-                <div class="card"><div class="card-header">IA Config</div><div class="grid-2">
-                    <div class="field-group"><label class="field-label">Proveedor</label><select id="cfg_provider" class="form-input" onchange="uiTogIA()"><option value="anthropic">Anthropic</option><option value="google">Google</option><option value="openai">OpenAI</option></select></div>
-                    <div class="field-group"><label class="field-label">Idioma</label><select id="cfg_idioma" class="form-input"><option value="es">Español</option><option value="en">English</option></select></div>
                 </div>
-                <div id="cfg-ia">
-                    <div id="ia_anthropic"><div class="field-group"><label class="field-label">Anthropic Key</label><input type="password" id="cfg_apikey" class="form-input"></div></div>
-                    <div id="ia_google" style="display:none"><div class="field-group"><label class="field-label">Google Key</label><input type="password" id="cfg_geminikey" class="form-input"></div></div>
-                    <div id="ia_openai" style="display:none"><div class="field-group"><label class="field-label">OpenAI Key</label><input type="password" id="cfg_openaikey" class="form-input"></div></div>
-                    <input id="cfg_model" style="display:none"><input id="cfg_openaiurl" style="display:none">
+
+                <div class="lux-card">
+                    <div class="lux-card-header">Documentación Contractual</div>
+                    <div class="lux-upbox" onclick="$('fInput').click()">
+                        <i>📂</i>
+                        <h4 style="font-size:18px; color:var(--slate-800); margin-bottom:8px;">Subir Factura de Electricidad</h4>
+                        <p style="color:var(--slate-400); font-size:14px;">Arrastra el archivo o haz clic para seleccionarlo (PDF/JPG)</p>
+                        <input type="file" id="fInput" style="display:none" onchange="onFiles(this.files)">
+                    </div>
+                    <div id="chips" style="margin-top:25px; display:flex; flex-wrap:wrap; gap:12px;"></div>
+                    
+                    <div id="prevSec" style="display:none; margin-top:40px; text-align:center;">
+                        <img id="prevImg" class="preview-img">
+                        <div class="lux-btn-group">
+                            <button class="btn-lux btn-lux-primary" id="btnEx" onclick="extract()">✦ EXTRAER DATOS CON IA</button>
+                            <button class="btn-lux btn-lux-secondary" onclick="resetUp()">✕ CAMBIAR ARCHIVO</button>
+                        </div>
+                    </div>
                 </div>
+
+                <div class="lux-card">
+                    <div class="lux-card-header">Suministro (CUPS)</div>
+                    <div class="lux-grid lux-grid-3">
+                        <div class="lux-field"><label class="lux-label">Consumo Estimado (kWh/año)</label><input type="number" id="f_consumo_anual" class="form-input" placeholder="45.000"></div>
+                        <div class="lux-field"><label class="lux-label">Potencia Máxima (kW)</label><input type="number" id="f_pot" class="form-input" placeholder="15.0"></div>
+                        <div class="lux-field">
+                            <label class="lux-label">Tarifa del Suministro</label>
+                            <select id="f_tar" class="form-input">
+                                <option value="2.0TD">2.0TD (Hogares / PYME pequeñas)</option>
+                                <option value="3.0TD (Industria pequeña)">3.0TD</option>
+                                <option value="6.1TD (Alta Tensión)">6.1TD</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div class="card"><div class="card-header">Usuarios</div><div id="cfg-users-addbar"></div><div id="cfg-users-content"></div></div>
-            </div>
-        </div>
+            </section>
+
+            <!-- PAGE: REVISION -->
+            <section class="page" id="p-rev">
+                <div class="lux-card"><div class="lux-card-header">Revisión de Datos Extraídos</div>
+                    <div class="lux-grid lux-grid-3">
+                        <div class="lux-field"><label class="lux-label">Titular / Razón Social</label><input id="f_cli" class="form-input"></div>
+                        <div class="lux-field"><label class="lux-label">Código CUPS</label><input id="f_cups" class="form-input"></div>
+                        <input id="f_com" style="display:none"><input id="f_dir" style="display:none"><input id="f_cp" style="display:none"><input id="f_dias" style="display:none"><input id="f_tot" style="display:none">
+                    </div>
+                </div>
+                <!-- HIDDEN FIELDS FOR JS LOGIC -->
+                <div style="display:none">
+                    <tbody id="potT"></tbody><div id="enT"></div><div id="lecT"></div>
+                    <input id="f_iva"><input id="f_iee"><input id="f_iva_act"><input id="f_iee_act"><input id="f_dto_en_act"><input id="f_rea"><input id="f_exc"><input id="f_alq"><input id="f_bon"><input id="f_ser"><input type="checkbox" id="f_tiene_autocon"><div id="autoconFields"><input id="f_aut_kwh"><input id="f_aut_precio"><input id="f_aut_total"></div>
+                </div>
+            </section>
+
+            <section class="page" id="p-cmp"><div class="lux-grid lux-grid-2"><div class="lux-card"><div class="lux-card-header">Ranking de Ahorro</div><div id="rankDiv"></div></div><div class="lux-card"><div class="lux-card-header">Desglose de Oferta</div><div id="detDiv"></div></div></div></section>
+            <section class="page" id="p-ofr"><div class="lux-card"><div class="lux-card-header">Base de Datos de Mercados</div><div id="ofrList"></div></div></section>
+            
+            <section class="page" id="p-com">
+                <div class="lux-grid lux-grid-2">
+                    <div class="lux-card"><div class="lux-card-header">Partner Energético</div><div id="comList"></div></div>
+                    <div class="lux-card" id="comEditor" style="display:none"><div class="lux-card-header" id="comCoName">Comercializadora</div><table class="lux-table"><thead><tr><th>P.Min</th><th>P.Max</th><th>C.Min</th><th>C.Max</th><th>Filtro</th><th>Valor</th><th>Tipo</th></tr></thead><tbody id="comTramosT"></tbody></table></div>
+                    <div id="comEditorEmpty" style="padding:40px; text-align:center; color:var(--slate-400);">Selecciona una compañía para ver sus comisiones</div>
+                </div>
+            </section>
+
+            <section class="page" id="p-cfg">
+                <div class="lux-card"><div class="lux-card-header">Configuración Smart IA</div>
+                    <div class="lux-grid lux-grid-2">
+                        <div class="lux-field"><label class="lux-label">Motor de Inteligencia</label><select id="cfg_provider" class="form-input" onchange="uiTogIA()"><option value="anthropic">Anthropic Claude 3.5</option><option value="google">Google Gemini 1.5</option><option value="openai">OpenAI GPT-4o</option></select></div>
+                        <div class="lux-field"><label class="lux-label">Lenguaje del Sistema</label><select id="cfg_idioma" class="form-input"><option value="es">Castellano</option><option value="en">English (International)</option></select></div>
+                    </div>
+                    <div id="cfg-ia" style="margin-top:30px; padding-top:30px; border-top:1px solid var(--slate-100);">
+                        <div id="ia_anthropic"><div class="lux-field"><label class="lux-label">Authorization Key (Anthropic)</label><input type="password" id="cfg_apikey" class="form-input" placeholder="sk-ant-..."></div></div>
+                        <div id="ia_google" style="display:none"><div class="lux-field"><label class="lux-label">API Access Key (Gemini)</label><input type="password" id="cfg_geminikey" class="form-input"></div></div>
+                        <div id="ia_openai" style="display:none"><div class="lux-field"><label class="lux-label">OpenAI Bearer Token</label><input type="password" id="cfg_openaikey" class="form-input"></div></div>
+                        <input id="cfg_model" style="display:none"><input id="cfg_openaiurl" style="display:none">
+                    </div>
+                </div>
+                <div class="lux-card"><div class="lux-card-header">Acceso de Asesores</div><div id="cfg-users-addbar"></div><div id="cfg-users-content"></div></div>
+            </section>
+        </main>
     </div>
 
+    <!-- JS EXTERNAL LIBS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
-    <script src="script.js?v=senior_vfinal"></script>
+    <script src="script.js?v=luxury_v1"></script>
 </body>
 </html>
