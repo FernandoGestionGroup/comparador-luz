@@ -20,9 +20,11 @@ app.add_middleware(
 )
 
 # --- PATH RESOLUTION (Vercel-Safe) ---
-# We use 'static' instead of 'public' to avoid Vercel automatic caching/ignoring
 CURRENT_DIR = Path(__file__).resolve().parent
-STATIC_DIR = CURRENT_DIR / "static"
+PROJECT_ROOT = CURRENT_DIR.parent
+# Primary: public/ (canonical frontend source). Fallback: api/static/
+PUBLIC_DIR = PROJECT_ROOT / "public"
+STATIC_DIR = PUBLIC_DIR if PUBLIC_DIR.is_dir() else CURRENT_DIR / "static"
 
 # --- LAZY DATABASE & MODELS ---
 _STORAGE = {"db": None}
