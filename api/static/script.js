@@ -529,6 +529,24 @@ const normMime=function(t){
   return 'image/jpeg';
 };
 
+// 📄 EXTRACTOR DE TEXTO PDF (BROWSER SIDE)
+async function extractTextFromPDF(dataBase64) {
+  try {
+    const loadingTask = pdfjsLib.getDocument({ data: atob(dataBase64) });
+    const pdf = await loadingTask.promise;
+    let fullText = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        fullText += textContent.items.map(item => item.str).join(' ') + "\n";
+    }
+    return fullText.trim();
+  } catch (e) {
+    console.warn("PDF.js falló o el PDF es una imagen:", e);
+    return null;
+  }
+}
+
 async function extract(){
   const p = ST.config.provider || 'anthropic';
   const hasKey = (p==='anthropic' && ST.config.has_api_key) || 
@@ -539,7 +557,26 @@ async function extract(){
   if(!ST.files.length){sb('Sube al menos un archivo','err');return;}
   $('btnEx').disabled=true; sb('Analizando factura con IA ('+p.toUpperCase()+')…','load');
 
-  // ... (Prompt stays same)
+  const uc=[];
+  for(const f of ST.files){
+    let textContent = null;
+    const m = normMime(f.type);
+    
+    if(m === 'application/pdf'){
+      textContent = await extractTextFromPDF(f.data);
+    }
+    
+    if(textContent && textContent.length > 50){
+      console.log("AI Hub: Usando modo Texto Nativo para un archivo.");
+      uc.push({type:'text', text: "EXTRACTO DE TEXTO DE UN DOCUMENTO:\n" + textContent});
+    } else {
+      console.log("AI Hub: Usando modo Visión para un archivo.");
+      uc.push(m==='application/pdf'
+        ?{type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}}
+        :{type:'image',source:{type:'base64',media_type:m,data:f.data}});
+    }
+  }
+
   const prompt='Eres experto en facturas eléctricas españolas. Extrae TODOS los datos. Responde SOLO JSON válido sin markdown:\n'
   +'{"cliente":"","cups":"","comercializadora":"","direccion":"","cp":"","tarifa":"","potencia_kw":0,"dias":0,"fecha_inicio":"YYYY-MM-DD",'
   +'"total_factura":0,"iva_pct":21,"iee_pct":5.1126963,"iee_act":0,"iva_act":0,"dto_energia_act_pct":0,'
@@ -552,20 +589,10 @@ async function extract(){
   +'"iee_extras":[{"nombre":"","importe":0}],'
   +'"confianza":{"total_factura":"alta","potencia":"alta","energia":"alta"}}\n'
   +'REGLAS CRÍTICAS:\n'
-  +'1. Busca explícitamente el nombre de la "Tarifa" o "Peaje de acceso" (ej: 2.0TD, 3.0TD, 6.1TD) y devuélvelo en el campo "tarifa".\n'
-  +'2. El array "energia" representa EXACTAMENTE las líneas de facturación tal como aparecen impresas en la factura (puede ser 1 sola línea de tarifa plana, o varias por período). Extrae fielmente esos importes y precios.\n'
-  +'3. El array "lecturas_energia" es INDEPENDIENTE: busca la sección "Lecturas" / "Información de Consumo" / "Detalle de consumo" del documento y extrae el desglose real de kWh por período P1, P2, P3... Si no existen lecturas desglosadas, copia los kWh del array energia agrupados por período. NUNCA dejes lecturas_energia vacío si hay datos de consumo en el documento.\n'
-  +'4. Si hay varios sub-períodos de precio, "tiene_multiples_periodos"=true y devuelve líneas extra en "energia".\n'
-  +'5. Valores inexistentes=0 o "".';
-
-  const uc=[];
-  ST.files.forEach(function(f){
-    const m=normMime(f.type);
-    uc.push(m==='application/pdf'
-      ?{type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}}
-      :{type:'image',source:{type:'base64',media_type:m,data:f.data}});
-  });
-  const note=ST.files.length>1?'Son '+ST.files.length+' páginas de la MISMA factura. Devuelve UN SOLO JSON consolidado. ':'';
+  +'1. Busca el nombre de la "Tarifa" (2.0TD, 3.0TD, 6.1TD).\n'
+  +'2. "lecturas_energia": busca la sección "Lecturas" o "Consumo" real por período P1, P2, P3...';
+  
+  const note=ST.files.length>1?'Son '+ST.files.length+' páginas. Devuelve UN SOLO JSON consolidado. ':'';
   uc.push({type:'text',text:note+prompt});
 
   try{
@@ -577,8 +604,6 @@ async function extract(){
     if(d.error) throw new Error(d.error);
     
     const used = d.provider ? 'vía ' + d.provider : 'IA';
-    
-    // 🛡️ CAPA DE SEGURIDAD EXTRA EN CLIENTE
     let cleanText = d.text || "";
     const firstBrace = cleanText.indexOf('{');
     const lastBrace = cleanText.lastIndexOf('}');

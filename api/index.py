@@ -329,10 +329,11 @@ async def extract_invoice(body: dict = Body(...)):
             except Exception as e:
                 err_str = str(e)
                 print(f"Error con {provider}: {err_str}")
-                if "429" in err_str or "limit" in err_str.lower():
-                    print(f"AI Hub: {provider} saturado, saltando al siguiente...")
+                # Si está saturado (429) o la llave es mala (401), saltamos al siguiente
+                if any(x in err_str for x in ["429", "limit", "401", "key", "authentication"]):
+                    print(f"AI Hub: {provider} falló ({err_str}), saltando al siguiente...")
                     continue
-                # Si es otro error grave, lo lanzamos
+                # Si es otro error desconocido, lo lanzamos
                 return JSONResponse(status_code=500, content={"error": err_str, "traceback": traceback.format_exc()})
 
         return JSONResponse(status_code=500, content={"error": f"Todas las IAs fallaron o están saturadas. Intentado con: {attempted_providers}"})
