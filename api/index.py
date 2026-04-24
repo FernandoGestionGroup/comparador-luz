@@ -22,7 +22,7 @@ app.add_middleware(
 # --- PATH RESOLUTION (Vercel-Safe) ---
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
-STATIC_DIR = PROJECT_ROOT / "public"
+STATIC_DIR = CURRENT_DIR / "static"
 
 # --- LAZY DATABASE & MODELS ---
 _STORAGE = {"db": None}
