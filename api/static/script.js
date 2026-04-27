@@ -453,9 +453,19 @@ function onFiles(flist){
         if($('prevSec')) $('prevSec').style.display='block';
         if($('upzone')) $('upzone').style.borderColor='var(--primary)';
         
-        // Mostrar botón de extracción PDF servidor si hay al menos un PDF
+        // Lógica de botones inteligente para ahorrar tokens
         const hasPdf = ST.files.some(f => f.type.includes('pdf'));
-        if($('btnExPdf')) $('btnExPdf').style.display = hasPdf ? '' : 'none';
+        const hasImg = ST.files.some(f => !f.type.includes('pdf'));
+        
+        if(hasImg) {
+          // Si hay imágenes, mostramos el botón de IA (necesario)
+          if($('btnEx')) $('btnEx').style.display = '';
+          if($('btnExPdf')) $('btnExPdf').style.display = 'none';
+        } else if(hasPdf) {
+          // Si es solo PDF, mostramos el barato y ocultamos el caro
+          if($('btnExPdf')) $('btnExPdf').style.display = '';
+          if($('btnEx')) $('btnEx').style.display = 'none';
+        }
       }
     };
     r.readAsDataURL(file);
@@ -530,9 +540,10 @@ async function extractPdfServer(){
     const d = await resp.json();
     
     if(d.error){
-      // Si es error de OCR, sugerir usar la extracción estándar con IA
+      // Si es error de OCR, sugerir usar la extracción estándar con IA y MOSTRAR el botón
       if(d.tipo === 'ocr_requerido'){
-        sb('PDF sin texto (imagen). Usa "✦ Extraer con IA" para procesar imágenes.','err');
+        sb('PDF sin texto (es una imagen). Pulsa "✦ Extraer con IA" para procesar con visión artificial.','warn');
+        if($('btnEx')) $('btnEx').style.display = ''; // Revelar botón fallback
       } else {
         sb('Error: ' + d.error, 'err');
       }
