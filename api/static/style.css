@@ -22,6 +22,9 @@
   --radius: 8px;
   --radius-lg: 12px;
   --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
 
   /* Compatibilidad */
   --acc: var(--primary);
@@ -45,8 +48,9 @@ body {
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 30px; height: 70px; background: white; border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02); z-index: 10;
+  padding: 0 30px; height: 74px; background: var(--glass); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.03); z-index: 10;
+  position: sticky; top: 0;
 }
 .logo { font-weight: 800; font-size: 20px; display: flex; align-items: center; gap: 10px; color: #1e293b; font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
 .logo span { color: var(--primary); }
@@ -81,9 +85,11 @@ body {
 .sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 .card { 
-  background: white; border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 30px; margin-bottom: 25px; box-shadow: var(--shadow);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 32px; margin-bottom: 25px; box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .ct { 
   font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 20px;
   display: flex; align-items: center; gap: 12px; font-family: 'Outfit', sans-serif;
@@ -112,8 +118,12 @@ body {
   font-weight: 700; font-size: 12px; transition: all 0.2s; border: 1px solid transparent;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
-.btn-p { background: var(--primary); color: white; }
-.btn-p:hover { background: var(--primary-deep); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44, 181, 173, 0.25); }
+.btn-p { 
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-deep) 100%); 
+  color: white; border: none; box-shadow: 0 4px 14px rgba(44, 181, 173, 0.3);
+}
+.btn-p:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(44, 181, 173, 0.4); opacity: 0.95; }
+.btn-p:active { transform: translateY(0); }
 
 .btn-s { background: white; color: var(--t2); border-color: var(--border); }
 .btn-s:hover { border-color: var(--t3); color: var(--tx); background: #f8fafc; }
