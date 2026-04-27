@@ -16,6 +16,10 @@ from fastapi.security import APIKeyHeader
 import uuid
 from passlib.context import CryptContext
 from firebase_admin import firestore
+import anthropic
+from openai import OpenAI
+try: from google import genai; from google.genai import types
+except: genai = None; types = None
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -573,12 +577,10 @@ async def extract_invoice(body: dict = Body(...)):
             try:
                 text = ""
                 if provider == "anthropic":
-                    import anthropic
                     client = anthropic.Anthropic(api_key=keys["anthropic"])
                     response = client.messages.create(model=cfg.get("model") or "claude-3-5-sonnet-latest", max_tokens=4096, system=system_prompt, messages=messages)
                     text = response.content[0].text
                 elif provider == "google":
-                    from google import genai; from google.genai import types
                     client = genai.Client(api_key=keys["google"])
                     contents = []
                     for m in messages:
@@ -590,7 +592,6 @@ async def extract_invoice(body: dict = Body(...)):
                     response = client.models.generate_content(model=cfg.get("model") or "gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt))
                     text = response.text
                 elif provider in ["openai", "groq"]:
-                    from openai import OpenAI
                     is_groq = (provider == "groq")
                     b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
                     client = OpenAI(api_key=keys["openai"], base_url=b_url)
