@@ -5,8 +5,8 @@
 
 # API / Public (Migration cleanup)
 # No ignorar estas carpetas ya que contienen la app final
-# !api/
-# !public/
+!api/
+!public/
 
 # Python
 __pycache__/
