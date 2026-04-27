@@ -618,17 +618,37 @@ async def extract_invoice(body: dict = Body(...)):
 
 @app.get("/api/history", dependencies=[Depends(get_current_user)])
 async def get_history(user: dict = Depends(get_current_user)):
-    db = get_db()
-    if not db: return []
-    docs = db.collection('_history').where('uid', '==', user['id']).order_by('timestamp', direction=firestore.Query.DESCENDING).limit(50).stream()
-    res = []
-    for d in docs:
-        item = d.to_dict()
-        item['id'] = d.id
-        if 'timestamp' in item and hasattr(item['timestamp'], 'isoformat'):
-            item['timestamp'] = item['timestamp'].isoformat()
-        res.append(item)
-    return res
+    try:
+        db = get_db()
+        if not db: return []
+        # Eliminamos order_by para evitar el requisito de índice compuesto en Firebase
+        docs = db.collection('_history').where('uid', '==', user['id']).limit(100).stream()
+        res = []
+        for d in docs:
+            item = d.to_dict()
+            item['id'] = d.id
+            # Convertir timestamp a string
+            ts = item.get('timestamp')
+            if ts and hasattr(ts, 'isoformat'):
+                item['timestamp_str'] = ts.isoformat()
+                item['_ts_val'] = ts # Para ordenar
+            else:
+                item['timestamp_str'] = ""
+                item['_ts_val'] = 0
+            res.append(item)
+        
+        # Ordenar en memoria (Python) para evitar errores de índice de Firebase
+        res.sort(key=lambda x: x.get('_ts_val', 0) if x.get('_ts_val') else 0, reverse=True)
+        
+        # Limpiar campos auxiliares antes de enviar
+        for r in res: 
+            if 'timestamp' in r: r['timestamp'] = r['timestamp_str']
+            r.pop('_ts_val', None); r.pop('timestamp_str', None)
+            
+        return res[:50]
+    except Exception as e:
+        print(f"ERROR HISTORY: {e}")
+        return []
 
 @app.post("/api/history", dependencies=[Depends(get_current_user)])
 async def save_history(body: dict = Body(...), user: dict = Depends(get_current_user)):
