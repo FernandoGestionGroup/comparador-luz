@@ -226,7 +226,27 @@
         <div class="login-brand">ESTUDIO <span>LUZ</span></div>
         <div class="login-sub">GestionGroup · Energía</div>
         <div class="login-field"><label>Email</label><input type="email" id="l_email" class="form-input" placeholder="usuario@gestiongroup.es"></div>
-        <div class="login-field"><label>Contraseña</label><input type="password" id="l_pass" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+        <div class="login-field">
+            <label>Contraseña</label>
+            <div style="position:relative">
+                <input type="password" id="l_pass" class="form-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+                <div onclick="togglePass('l_pass', this)" style="position:absolute; right:12px; top:10px; cursor:pointer; color:var(--slate-400)">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </div>
+            </div>
+        </div>
+        <script>
+            function togglePass(id, el) {
+                const input = document.getElementById(id);
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    el.style.color = 'var(--primary)';
+                } else {
+                    input.type = 'password';
+                    el.style.color = 'var(--slate-400)';
+                }
+            }
+        </script>
         <div id="l_err" class="login-err">Credenciales incorrectas</div>
         <button class="btn-primary" onclick="doLogin()">Entrar</button>
     </div>
@@ -284,6 +304,20 @@
                         <button class="btn-action primary" id="btnEx" onclick="extract()">✦ Extraer con IA</button>
                         <button class="btn-action secondary" onclick="resetUp()">Cambiar archivos</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Historial de Extracciones -->
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                    <div class="card-title" style="margin-bottom:0">Historial Reciente</div>
+                    <div style="position:relative">
+                        <input type="text" id="histSearch" placeholder="Buscar por Nombre o CUPS..." style="font-size:12px; padding:8px 12px 8px 32px; border-radius:20px; border:1px solid var(--border); width:280px" oninput="renderHistory()">
+                        <svg style="position:absolute; left:12px; top:10px; color:var(--slate-400)" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+                <div id="histList" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:12px">
+                    <!-- Items del historial se cargarán aquí -->
                 </div>
             </div>
             <!-- Hidden sync fields for updTar() -->
@@ -349,16 +383,32 @@
                 </div>
                 <div class="g3" style="margin-top:16px">
                     <div class="fld"><label class="fld-label">Bono Social (€)</label><input type="number" id="f_bon" class="form-input"></div>
-                    <div class="fld"><label class="fld-label">Servicio / Otros (€)</label><input type="number" id="f_ser" class="form-input"></div>
+                    <div class="fld">
+                        <label class="fld-label">Servicio / Otros (€)</label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="number" id="f_ser" class="form-input">
+                            <label style="display:flex;align-items:center;gap:4px;font-size:10px;white-space:nowrap;color:var(--slate-400);cursor:pointer">
+                                <input type="checkbox" id="f_ser_iva"> Incl. IVA
+                            </label>
+                        </div>
+                    </div>
                     <div class="fld"><label class="fld-label">Dirección</label><input id="f_dir" class="form-input"></div>
                 </div>
                 <!-- Sección de Extras IEE -->
                 <div style="margin-top:20px; padding-top:15px; border-top:1px solid #f1f5f9">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
-                        <span style="font-size:11px; font-weight:700; color:var(--slate-400); text-transform:uppercase; letter-spacing:0.05em">Otros conceptos sujetos a IEE (ej. FNEE)</span>
-                        <button type="button" class="btn-logout" onclick="addIeeExtra()" style="color:var(--primary); font-weight:700; font-size:11px">+ Añadir concepto</button>
+                        <span style="font-size:11px; font-weight:700; color:var(--slate-400); text-transform:uppercase; letter-spacing:0.05em">Conceptos sujetos a IEE (ej. FNEE)</span>
+                        <button type="button" class="btn-logout" onclick="addExtra('iee')" style="color:var(--primary); font-weight:700; font-size:11px">+ Añadir concepto</button>
                     </div>
                     <div id="ieeExtras"></div>
+                </div>
+                <!-- Sección de Extras NO IEE -->
+                <div style="margin-top:15px; padding-top:15px; border-top:1px dashed #f1f5f9">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                        <span style="font-size:11px; font-weight:700; color:var(--slate-400); text-transform:uppercase; letter-spacing:0.05em">Conceptos NO sujetos a IEE (ej. Ajustes)</span>
+                        <button type="button" class="btn-logout" onclick="addExtra('noiee')" style="color:var(--primary); font-weight:700; font-size:11px">+ Añadir concepto</button>
+                    </div>
+                    <div id="noIeeExtras"></div>
                 </div>
             </div>
             <div style="display:none"><input id="f_cp"></div>
