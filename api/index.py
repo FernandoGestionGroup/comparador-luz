@@ -72,12 +72,13 @@ async def verify_admin(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
     return user
 
-# --- CONFIGURACIÓN DE RUTAS ESTÁTICAS (Nueva estructura interna) ---
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+# --- CONFIGURACIÓN DE RUTAS ESTÁTICAS (Volviendo a raíz para Vercel) ---
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "public"
 
-# Fallback para desarrollo local (si la carpeta sigue en la raíz)
+# Fallback si por algún motivo está en api/static
 if not STATIC_DIR.exists():
-    STATIC_DIR = Path(__file__).resolve().parent.parent / "public"
+    STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 print(f"Directorio Estático detectado: {STATIC_DIR}")
 
