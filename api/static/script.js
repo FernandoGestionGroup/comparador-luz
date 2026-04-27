@@ -438,8 +438,9 @@ function updTar(forceTariff){
 
 function onFiles(flist){
   const files=Array.from(flist); if(!files.length) return;
-  ST.files=[]; $('chips').innerHTML=''; let loaded=0;
+  ST.files=[]; ST._rawFiles=[]; $('chips').innerHTML=''; let loaded=0;
   files.forEach(function(file){
+    ST._rawFiles.push(file); // Guardar referencia al File original para FormData
     const r=new FileReader();
     r.onload=function(e){
       ST.files.push({data:e.target.result.split(',')[1], type:file.type, name:file.name, src:e.target.result});
@@ -451,6 +452,10 @@ function onFiles(flist){
         
         if($('prevSec')) $('prevSec').style.display='block';
         if($('upzone')) $('upzone').style.borderColor='var(--primary)';
+        
+        // Mostrar botón de extracción PDF servidor si hay al menos un PDF
+        const hasPdf = ST.files.some(f => f.type.includes('pdf'));
+        if($('btnExPdf')) $('btnExPdf').style.display = hasPdf ? '' : 'none';
       }
     };
     r.readAsDataURL(file);
@@ -501,6 +506,53 @@ async function extract(){
     sb('Extracción completada', 'ok');
   } catch(e){ sb('Error: '+e.message, 'err'); }
   finally { btn.disabled=false; btn.innerHTML=old; }
+}
+
+async function extractPdfServer(){
+  // Extracción server-side: enviar PDF al backend como FormData (PyMuPDF + Gemini)
+  const pdfFile = (ST._rawFiles || []).find(f => f.type.includes('pdf'));
+  if(!pdfFile){ sb('No se encontró un archivo PDF. Sube un PDF primero.','err'); return; }
+  
+  const btn = $('btnExPdf');
+  const old = btn.innerHTML;
+  btn.disabled = true;
+  sb('Extrayendo texto del PDF con PyMuPDF + Gemini…','load');
+  
+  try {
+    const formData = new FormData();
+    formData.append('file', pdfFile);
+    
+    const resp = await fetch('/api/extract-pdf', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const d = await resp.json();
+    
+    if(d.error){
+      // Si es error de OCR, sugerir usar la extracción estándar con IA
+      if(d.tipo === 'ocr_requerido'){
+        sb('PDF sin texto (imagen). Usa "✦ Extraer con IA" para procesar imágenes.','err');
+      } else {
+        sb('Error: ' + d.error, 'err');
+      }
+      return;
+    }
+    
+    if(d.ok && d.data){
+      fillForm(d.data);
+      saveToHistory(d.data);
+      go('rev');
+      sb(`Extracción completada (${d.metodo}) — ${d.texto_extraido_chars} caracteres procesados`, 'ok');
+    } else {
+      sb('Respuesta inesperada del servidor', 'err');
+    }
+  } catch(e){
+    sb('Error de conexión: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = old;
+  }
 }
 
 async function loadHistory(){
@@ -774,8 +826,6 @@ function selOfr(id){
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
         <div style="padding:12px; background:var(--slate-100); border-radius:10px">
           <div style="font-size:10px; font-weight:700; color:var(--slate-400); text-transform:uppercase">Factura Actual</div>
-          <div style="font-weight:800; font-size:18px; color:var(--slate-700)">${d.total_factura.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div>
-        </div>
         <div style="padding:12px; background:var(--primary-bg); border-radius:10px">
           <div style="font-size:10px; font-weight:700; color:var(--primary); text-transform:uppercase">Nueva Oferta</div>
           <div style="font-weight:800; font-size:18px; color:var(--primary)">${r.total.toLocaleString('es-ES',{minimumFractionDigits:2})} €</div>
@@ -788,62 +838,41 @@ function selOfr(id){
         <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:18px">${r.comision.toFixed(2)} €</div>
       </div>` : ''}
 
-      <button class="btn-action primary" onclick="genPDF()" style="width:100%; justify-content:center; height:54px; font-size:15px">
+      <button class="btn-action primary" onclick="genPDF(ST.sel)" style="width:100%; justify-content:center; height:54px; font-size:15px">
         📄 Generar PDF para comercial
       </button>
     </div>
   `;
 }
 
-function genPDF(){
-  if(!ST.sel){alert('Selecciona una oferta primero');return;}
-  const d=getForm(), r=ST.sel;
-  const asesor=($('g_asesor')?.value||'').trim();
-  const fechaProp=$('g_fecha')?.value||new Date().toISOString().split('T')[0];
-  const validezDias=r.validez||7;
-  const fechaFmt=iso => { if(!iso) return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; };
-  const fmt=v => v===0 ? '— €' : v.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
-  const fmtP=v => v===0 ? '—' : v.toLocaleString('es-ES', {minimumFractionDigits:6, maximumFractionDigits:6});
-  const fmtK=v => v===0 ? '0,000' : v.toLocaleString('es-ES', {minimumFractionDigits:3, maximumFractionDigits:3});
-
-  const servSum=d.servicio||0;
-  const baseIVAAct = d.total_factura - d.iva_act;
-  const ivaActCalc = d.iva_act;
-  const calcTotalAct = d.total_factura;
-  const ahorroEur=calcTotalAct-r.total;
-  const ahorroPct=calcTotalAct>0?(ahorroEur/calcTotalAct*100):0;
-  const ahorroAnual=d.dias>0?(ahorroEur/d.dias*365):0;
+function genPDF(r) {
+  const d = getForm();
+  ST.invoice = d;
+  const PS = (d.tarifa.startsWith('3.') || d.tarifa.startsWith('6.')) ? ['P1','P2','P3','P4','P5','P6'] : ['P1','P2','P3'];
+  const asesor = ($('g_asesor')?.value || '').trim();
+  const fechaProp = $('g_fecha')?.value || new Date().toISOString().split('T')[0];
+  const validezDias = r.validez || 7;
   
-  const tPotAct=d.pot_p.reduce((s,l)=>s+l.importe,0);
-  const dtoActPct=d.dto_en_act_pct||0;
-  const ieeAct=d.iee_act||0, ivaAct=ivaActCalc;
-  const dtoEnNvaPct=r.dto_energia_por_periodo?0:(r.dto_energia_global||0);
-  const simByPer = d.lec_by_per || {};
+  const fechaFmt = iso => { if(!iso) return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; };
+  const fmt = v => v === 0 ? '— €' : v.toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  const fmtP = v => v === 0 ? '—' : v.toLocaleString('es-ES', {minimumFractionDigits:6, maximumFractionDigits:6});
+  const fmtK = v => v === 0 ? '0,000' : v.toLocaleString('es-ES', {minimumFractionDigits:3, maximumFractionDigits:3});
 
-  // Logo SVG Re-creation (Professional GG Style)
-  const logoSVG = `
-    <svg width="180" height="70" viewBox="0 0 180 70" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="25" cy="22" r="20" fill="#333"/>
-      <text x="25" y="30" text-anchor="middle" fill="white" font-size="22" font-family="Arial" font-weight="900">G</text>
-      <circle cx="25" cy="48" r="20" fill="#2cb5ad" opacity="0.9"/>
-      <text x="25" y="56" text-anchor="middle" fill="white" font-size="22" font-family="Arial" font-weight="900">G</text>
-      <text x="55" y="30" font-family="Arial" font-size="20" font-weight="900" fill="#333" letter-spacing="-0.5">GESTION</text>
-      <text x="55" y="52" font-family="Arial" font-size="20" font-weight="900" fill="#333" letter-spacing="-0.5">GROUP</text>
-      <text x="55" y="66" font-family="Arial" font-size="8" font-weight="bold" fill="#2cb5ad" letter-spacing="1.5">SOLUCIONES ENERGÉTICAS</text>
-    </svg>`;
-
+  const ahorroEur = d.total_factura - r.total;
+  const ahorroPct = d.total_factura > 0 ? (ahorroEur / d.total_factura * 100) : 0;
+  const ahorroAnual = d.dias > 0 ? (ahorroEur / d.dias * 365) : 0;
+  
   let rowsPot = '', rowsEn = '';
   PS.forEach((p, idx) => {
-    // Potencia
-    const pLines = d.pot_p.filter(x=>x.per===p);
-    const kwNva = pLines.length>0 ? Math.max(...pLines.map(x=>x.kw)) : 0;
-    let ppNva = r['pp_'+p.toLowerCase()]||0;
-    if(d.tarifa.startsWith('2.0') && p==='P3' && !ppNva) ppNva=r.pp_p2||0;
+    const pLines = d.pot_p.filter(x => x.per === p);
+    const kwNva = pLines.length > 0 ? Math.max(...pLines.map(x => x.kw)) : 0;
+    let ppNva = r['pp_'+p.toLowerCase()] || 0;
+    if(d.tarifa.startsWith('2.0') && p === 'P3' && !ppNva) ppNva = r.pp_p2 || 0;
     const impNva = kwNva * ppNva * d.dias;
     
-    const kwAct = pLines.length>0 ? pLines[0].kw : 0;
-    const ppAct = (kwAct>0 && d.dias>0) ? pLines[0].importe/(kwAct*d.dias) : 0;
-    const impAct = pLines.length>0 ? pLines[0].importe : 0;
+    const kwAct = pLines.length > 0 ? pLines[0].kw : 0;
+    const ppAct = (kwAct > 0 && d.dias > 0) ? pLines[0].importe / (kwAct * d.dias) : 0;
+    const impAct = pLines.length > 0 ? pLines[0].importe : 0;
 
     rowsPot += `
       <tr>
@@ -852,20 +881,19 @@ function genPDF(){
         <td class="num">${fmtP(ppAct)}</td>
         <td class="num bold">${fmt(impAct)}</td>
         <td class="sep"></td>
-        <td class="num">${kwNva>0?fmtK(kwNva):'—'}</td>
-        <td class="num">${ppNva>0?fmtP(ppNva):'—'}</td>
+        <td class="num">${kwNva > 0 ? fmtK(kwNva) : '—'}</td>
+        <td class="num">${ppNva > 0 ? fmtP(ppNva) : '—'}</td>
         <td class="num bold nva">${fmt(impNva)}</td>
       </tr>`;
 
-    // Energia
-    const eLines = d.en_p.filter(x=>x.per===p);
-    const epNva = r['ep_'+p.toLowerCase()]||0;
-    const kwhSim = simByPer[p]||0;
-    const dtoP = r.dto_energia_por_periodo ? (r['dto_e_p'+(idx+1)]||0)/100 : dtoEnNvaPct/100;
+    const eLines = d.en_p.filter(x => x.per === p);
+    const epNva = r['ep_'+p.toLowerCase()] || 0;
+    const kwhSim = d.lec_by_per?.[p] || 0;
+    const dtoP = r.dto_energia_por_periodo ? (r['dto_e_p'+(idx+1)] || 0) / 100 : (r.dto_energia_global || 0) / 100;
     const impNvaSim = kwhSim * epNva * (1 - dtoP);
     
-    const kwhAct = eLines.length>0 ? eLines[0].kwh : 0;
-    const epAct = eLines.length>0 ? eLines[0].precio : 0;
+    const kwhAct = eLines.length > 0 ? eLines[0].kwh : 0;
+    const epAct = eLines.length > 0 ? eLines[0].precio : 0;
     const impActEn = kwhAct * epAct;
 
     rowsEn += `
@@ -875,98 +903,102 @@ function genPDF(){
         <td class="num">${fmtP(epAct)}</td>
         <td class="num bold">${fmt(impActEn)}</td>
         <td class="sep"></td>
-        <td class="num">${kwhSim>0?fmtK(kwhSim):'—'}</td>
-        <td class="num">${epNva>0?fmtP(epNva):'—'}</td>
+        <td class="num">${kwhSim > 0 ? fmtK(kwhSim) : '—'}</td>
+        <td class="num">${epNva > 0 ? fmtP(epNva) : '—'}</td>
         <td class="num bold nva">${fmt(impNvaSim)}</td>
       </tr>`;
   });
 
-  const w=window.open('','_blank');
+  const w = window.open('', '_blank');
   w.document.write(`
     <!DOCTYPE html>
     <html lang="es">
     <head>
       <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=Outfit:wght@700;900&display=swap" rel="stylesheet">
       <style>
-        :root { --teal: #2cb5ad; --dark: #333; --grey-bg: #f3f4f6; --teal-bg: #f0fafb; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { padding: 30px; color: #2d3138; font-size: 10px; line-height: 1.2; position: relative; min-height: 100vh; }
+        :root { --teal: #2cb5ad; --dark: #0f172a; --slate: #64748b; --bg: #f8fafc; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { padding: 40px; color: var(--dark); font-family: 'Inter', sans-serif; font-size: 10px; line-height: 1.4; background: white; }
         
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-        .header-title { font-size: 16px; font-weight: 900; border-bottom: 2px solid var(--dark); padding-bottom: 5px; margin-top: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid var(--dark); padding-bottom: 20px; }
+        .header-title { font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 900; letter-spacing: -0.03em; }
+        .header-title span { color: var(--teal); }
         
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 15px; }
-        .info-box { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; background: var(--grey-bg); padding: 10px; border-radius: 4px; }
-        .info-item { display: flex; flex-direction: column; }
-        .info-lbl { font-size: 8px; font-weight: 700; color: #666; text-transform: uppercase; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
+        .info-box { background: var(--bg); padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .info-lbl { font-size: 8px; font-weight: 700; color: var(--slate); text-transform: uppercase; }
         .info-val { font-size: 10px; font-weight: 800; }
         
-        .offer-bar { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .offer-item { background: var(--teal-bg); border: 1px solid #b2e0de; padding: 8px; border-radius: 4px; text-align: center; }
-        .offer-item.main { background: #e6f7f6; }
+        .offer-banner { background: var(--dark); color: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .offer-main { font-family: 'Outfit', sans-serif; font-size: 18px; font-weight: 700; }
+        .offer-tag { background: var(--teal); padding: 4px 12px; border-radius: 20px; font-size: 9px; font-weight: 800; }
 
-        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        th { padding: 5px; font-size: 9px; text-transform: uppercase; }
-        .th-act { background: #d1d5db; color: var(--dark); border-bottom: 2px solid #9ca3af; }
-        .th-nva { background: var(--teal); color: white; border-bottom: 2px solid #1a7a75; }
-        .sec-hdr { background: #eee; font-weight: 800; padding: 4px 10px; border-bottom: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        th { padding: 8px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .th-act { background: #e2e8f0; color: var(--dark); }
+        .th-nva { background: var(--teal); color: white; }
+        .sec-hdr { background: #f1f5f9; font-weight: 800; padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10px; }
         
-        td { padding: 4px 8px; border-bottom: 1px solid #eee; }
-        .per { font-weight: 800; color: var(--teal); width: 40px; text-align: center; }
+        td { padding: 6px 12px; border-bottom: 1px solid #f1f5f9; }
+        .per { font-weight: 800; color: var(--teal); width: 45px; text-align: center; }
         .num { text-align: right; }
         .bold { font-weight: 800; }
-        .sep { width: 10px; background: white; border: none; }
-        .nva { background: var(--teal-bg); }
+        .sep { width: 15px; background: white; border: none; }
+        .nva { background: #f0fdfa; }
         
-        .summary-row td { background: #f9fafb; font-weight: 800; border-top: 1.5px solid #ccc; font-size: 11px; }
-        .summary-row .nva { background: #e6f7f6; color: #1a7a75; }
+        .summary-row td { background: #f8fafc; font-weight: 800; border-top: 2px solid #e2e8f0; font-size: 11px; padding: 10px 12px; }
+        .summary-row .nva { background: #ccfbf1; color: #0f766e; }
         
-        .savings-container { display: flex; justify-content: flex-end; margin-top: 15px; gap: 15px; }
-        .savings-box { background: #22c55e; color: white; padding: 12px 25px; border-radius: 6px; text-align: right; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .savings-box .lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; opacity: 0.9; }
-        .savings-box .val { font-size: 20px; font-weight: 900; }
-        .savings-box .sub { font-size: 12px; font-weight: 800; margin-top: 2px; }
+        .savings-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; margin-top: 30px; }
+        .savings-card { padding: 25px; border-radius: 16px; position: relative; overflow: hidden; }
+        .savings-card.white { background: var(--bg); border: 1px solid #e2e8f0; }
+        .savings-card.green { background: #10b981; color: white; box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4); }
+        .savings-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; opacity: 0.9; }
+        .savings-val { font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 900; margin-bottom: 5px; }
+        .savings-sub { font-size: 14px; font-weight: 700; }
 
-        .footer { position: absolute; bottom: 30px; left: 30px; right: 30px; display: flex; justify-content: space-between; align-items: flex-end; padding-top: 15px; border-top: 1px solid #eee; }
-        .advisor-box { border-left: 3px solid var(--teal); padding-left: 10px; }
-        .legal { font-size: 7.5px; color: #999; max-width: 500px; text-align: right; }
-        .wave { position: absolute; bottom: 0; left: 0; width: 100%; height: 15px; background: linear-gradient(90deg, #2cb5ad 0%, #1a7a75 100%); clip-path: polygon(0 50%, 10% 20%, 20% 50%, 30% 80%, 40% 50%, 50% 20%, 60% 50%, 70% 80%, 80% 50%, 90% 20%, 100% 50%, 100% 100%, 0 100%); }
-
-        @media print { 
-          body { padding: 10mm; } 
-          .savings-box { -webkit-print-color-adjust: exact; }
-          .wave { -webkit-print-color-adjust: exact; }
-        }
+        .footer { margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .advisor { border-left: 4px solid var(--teal); padding-left: 15px; }
+        .legal { font-size: 7px; color: var(--slate); max-width: 450px; line-height: 1.5; }
+        
+        @media print { body { padding: 0; } .savings-card.green { -webkit-print-color-adjust: exact; } }
       </style>
     </head>
     <body>
       <div class="header">
-        <div>
-          <div class="header-title">ESTUDIO COMPARATIVO</div>
-          <div style="font-size:9px; color:#666; margin-top:5px;">Gestion Group Soluciones Energéticas</div>
+        <div class="header-title">ESTUDIO <span>COMPARATIVO</span></div>
+        <div style="text-align:right">
+          <div style="font-weight:900; font-size:14px;">Gestion Group</div>
+          <div style="font-size:8px; color:var(--slate); font-weight:700;">SOLUCIONES ENERGÉTICAS</div>
         </div>
-        <div>${logoSVG}</div>
       </div>
 
       <div class="info-grid">
         <div class="info-box">
-          <div class="info-item"><span class="info-lbl">Tarifa</span><span class="info-val">${d.tarifa}</span></div>
-          <div class="info-item"><span class="info-lbl">Días</span><span class="info-val">${d.dias}</span></div>
-          <div class="info-item" style="grid-column: span 2;"><span class="info-lbl">Cliente</span><span class="info-val">${d.cliente || '—'}</span></div>
-          <div class="info-item" style="grid-column: span 2;"><span class="info-lbl">Cups</span><span class="info-val">${d.cups || '—'}</span></div>
+          <div class="info-row"><span class="info-lbl">Cliente</span><span class="info-val">${d.cliente || '—'}</span></div>
+          <div class="info-row"><span class="info-lbl">Cups</span><span class="info-val">${d.cups || '—'}</span></div>
+          <div class="info-row"><span class="info-lbl">Tarifa</span><span class="info-val">${d.tarifa}</span></div>
+          <div class="info-row"><span class="info-lbl">Periodo</span><span class="info-val">${fechaFmt(d.fecha_inicio)} a ${fechaFmt(fechaProp)}</span></div>
         </div>
         <div class="info-box">
-          <div class="info-item" style="grid-column: span 2;"><span class="info-lbl">Dirección</span><span class="info-val">${d.direccion || '—'}</span></div>
-          <div class="info-item"><span class="info-lbl">Código Postal</span><span class="info-val">${d.cp || '—'}</span></div>
-          <div class="info-item"><span class="info-lbl">Autoconsumo</span><span class="info-val">${d.tiene_autoconsumo ? 'SI' : 'NO'}</span></div>
-          <div class="info-item"><span class="info-lbl">Periodo</span><span class="info-val">${fechaFmt(d.fecha_inicio)} al ${fechaFmt(fechaProp)}</span></div>
+          <div class="info-row"><span class="info-lbl">Dirección</span><span class="info-val">${d.direccion || '—'}</span></div>
+          <div class="info-row"><span class="info-lbl">C. Postal</span><span class="info-val">${d.cp || '—'}</span></div>
+          <div class="info-row"><span class="info-lbl">Días</span><span class="info-val">${d.dias}</span></div>
+          <div class="info-row"><span class="info-lbl">Autoconsumo</span><span class="info-val">${d.tiene_autoconsumo ? 'SÍ' : 'NO'}</span></div>
         </div>
       </div>
 
-      <div class="offer-bar">
-        <div class="offer-item"><div class="info-lbl">Oferta</div><div class="info-val">${r.nombre}</div></div>
-        <div class="offer-item main"><div class="info-lbl">Tipo</div><div class="info-val" style="font-size:12px; color:var(--teal)">${t(r.tipo)}</div></div>
-        <div class="offer-item"><div class="info-lbl">Permanencia</div><div class="info-val">${r.permanencia || 'Sin permanencia'}</div></div>
+      <div class="offer-banner">
+        <div>
+          <div class="info-lbl" style="color:var(--teal); margin-bottom:5px;">Propuesta Seleccionada</div>
+          <div class="offer-main">${r.nombre}</div>
+        </div>
+        <div style="text-align:right">
+          <span class="offer-tag">${r.comercializadora}</span>
+          <div style="font-size:9px; margin-top:8px; font-weight:700; opacity:0.8;">${r.permanencia || 'Sin permanencia'}</div>
+        </div>
       </div>
 
       <table>
@@ -974,123 +1006,85 @@ function genPDF(){
           <tr>
             <th colspan="4" class="th-act">Facturación Actual (${d.comercializadora || 'Actual'})</th>
             <th class="sep"></th>
-            <th colspan="3" class="th-nva">Nueva Facturación (${r.nombre})</th>
+            <th colspan="3" class="th-nva">Nueva Propuesta (${r.nombre})</th>
           </tr>
-          <tr>
-            <td colspan="4" class="sec-hdr">Potencia Contratada (Termino Fijo)</td>
-            <td class="sep"></td>
-            <td colspan="3" class="sec-hdr nva">Nueva Potencia</td>
-          </tr>
-          <tr style="background:#f9fafb; font-size:8px;">
-            <th class="per">Per.</th><th>kW</th><th>€/kW día</th><th>Total</th>
-            <th class="sep"></th>
-            <th>kW</th><th>€/kW día</th><th class="nva">Total</th>
-          </tr>
+          <tr><td colspan="8" class="sec-hdr">Término de Potencia (Fijo)</td></tr>
         </thead>
         <tbody>
           ${rowsPot}
           <tr class="summary-row">
-            <td colspan="3">Total Término Fijo</td><td class="num">${fmt(tPotAct)}</td>
+            <td colspan="3">Subtotal Potencia</td><td class="num">${fmt(d.pot_p.reduce((s,l)=>s+l.importe,0))}</td>
             <td class="sep"></td>
             <td colspan="2"></td><td class="num nva">${fmt(r.tPot)}</td>
           </tr>
-          <tr><td colspan="8" style="border:none; height:10px;"></td></tr>
-          <tr>
-            <td colspan="4" class="sec-hdr">Energía Consumida (Termino Variable)</td>
-            <td class="sep"></td>
-            <td colspan="3" class="sec-hdr nva">Nueva Energía</td>
-          </tr>
-          <tr style="background:#f9fafb; font-size:8px;">
-            <th class="per">Per.</th><th>kWh</th><th>€/kWh</th><th>Total</th>
-            <th class="sep"></th>
-            <th>kWh</th><th>€/kWh</th><th class="nva">Total</th>
-          </tr>
+          <tr><td colspan="8" style="height:15px; border:none;"></td></tr>
+          <tr><td colspan="8" class="sec-hdr">Término de Energía (Variable)</td></tr>
           ${rowsEn}
           <tr class="summary-row">
-            <td colspan="3">Total Término Variable</td><td class="num">${fmt(d.en_p.reduce((s,l)=>s+(l.kwh*l.precio),0))}</td>
+            <td colspan="3">Subtotal Energía</td><td class="num">${fmt(d.en_p.reduce((s,l)=>s+(l.kwh*l.precio),0))}</td>
             <td class="sep"></td>
             <td colspan="2"></td><td class="num nva">${fmt(r.tEn)}</td>
-          </tr>
-          <tr><td colspan="8" style="border:none; height:10px;"></td></tr>
-          <tr>
-            <td colspan="4" class="sec-hdr">Impuestos y Otros Conceptos</td>
-            <td class="sep"></td>
-            <td colspan="3" class="sec-hdr nva">Resumen Nueva Oferta</td>
-          </tr>
-          ${d.tiene_autoconsumo ? `
-          <tr>
-            <td colspan="3">Compensación Excedentes (${fmtK(d.autoconsumo_kwh)} kWh)</td>
-            <td class="num" style="color:#dc2626;">-${fmt(d.autoconsumo_kwh * d.autoconsumo_precio_kwh)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td>
-            <td class="num nva" style="color:#dc2626;">-${fmt(r.compNva)}</td>
-          </tr>` : ''}
-          <tr>
-            <td colspan="3">Energía Reactiva / Excesos</td><td class="num">${fmt(d.reactiva + d.exceso_potencia)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva">— €</td>
-          </tr>
-          <tr>
-            <td colspan="3">Alquiler Equipos</td><td class="num">${fmt(d.alquiler_equipos)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva">${fmt(d.alquiler_equipos)}</td>
-          </tr>
-          ${(d.iee_extras||[]).map(e => `
-          <tr>
-            <td colspan="3">${e.nombre} (IEE)</td><td class="num">${fmt(e.importe)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva">${e.mantiene ? fmt(e.importe) : '— €'}</td>
-          </tr>`).join('')}
-          <tr>
-            <td colspan="3">Imp. Electricidad (IEE) ${d.iee_pct}%</td><td class="num">${fmt(ieeAct)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva">${fmt(r.iee)}</td>
-          </tr>
-          ${(d.no_iee_extras||[]).map(e => `
-          <tr>
-            <td colspan="3">${e.nombre}</td><td class="num">${fmt(e.importe)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva">${e.mantiene ? fmt(e.importe) : '— €'}</td>
-          </tr>`).join('')}
-          <tr>
-            <td colspan="3">Servicios / Otros ${d.servicio_incluye_iva ? '(incl. IVA)' : ''}</td><td class="num">${fmt(d.servicio)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva">— €</td>
-          </tr>
-          <tr>
-            <td colspan="3">IVA (${d.iva_pct}%)</td><td class="num">${fmt(ivaAct)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva">${fmt(r.iva)}</td>
-          </tr>
-          <tr class="summary-row">
-            <td colspan="3" style="font-size:13px;">TOTAL FACTURA</td><td class="num" style="font-size:13px;">${fmt(calcTotalAct)}</td>
-            <td class="sep"></td>
-            <td colspan="2"></td><td class="num nva" style="font-size:14px;">${fmt(r.total)}</td>
           </tr>
         </tbody>
       </table>
 
-      <div class="savings-container">
-        <div class="savings-box" style="background:#f3f4f6; color:#333; border: 1px solid #ddd;">
-          <div class="lbl" style="color:#666">Ahorro Estimado Factura</div>
-          <div class="val">${fmt(ahorroEur)}</div>
-          <div class="sub">${ahorroPct.toFixed(2)} %</div>
+      <table style="margin-top:10px;">
+        <thead>
+          <tr><td colspan="8" class="sec-hdr">Resumen de Conceptos e Impuestos</td></tr>
+        </thead>
+        <tbody>
+          ${d.tiene_autoconsumo ? `
+          <tr>
+            <td colspan="3">Compensación Excedentes (${fmtK(d.autoconsumo_kwh)} kWh)</td>
+            <td class="num" style="color:#dc2626;">-${fmt(d.autoconsumo_kwh * d.autoconsumo_precio_kwh)}</td>
+            <td class="sep"></td><td colspan="2"></td>
+            <td class="num nva" style="color:#dc2626;">-${fmt(r.compNva)}</td>
+          </tr>` : ''}
+          <tr>
+            <td colspan="3">Otros (Reactiva, Excesos, Alquiler)</td><td class="num">${fmt(d.reactiva + d.exceso_potencia + d.alquiler_equipos)}</td>
+            <td class="sep"></td><td colspan="2"></td>
+            <td class="num nva">${fmt(d.alquiler_equipos)}</td>
+          </tr>
+          <tr>
+            <td colspan="3">Impuesto Electricidad (IEE)</td><td class="num">${fmt(d.iee_act)}</td>
+            <td class="sep"></td><td colspan="2"></td>
+            <td class="num nva">${fmt(r.iee)}</td>
+          </tr>
+          <tr>
+            <td colspan="3">IVA (${d.iva_pct}%)</td><td class="num">${fmt(d.iva_act)}</td>
+            <td class="sep"></td><td colspan="2"></td>
+            <td class="num nva">${fmt(r.iva)}</td>
+          </tr>
+          <tr class="summary-row">
+            <td colspan="3" style="font-size:13px; color:var(--dark);">TOTAL FACTURA</td>
+            <td class="num" style="font-size:13px;">${fmt(d.total_factura)}</td>
+            <td class="sep"></td>
+            <td colspan="2"></td>
+            <td class="num nva" style="font-size:16px; color:#0f766e;">${fmt(r.total)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="savings-grid">
+        <div class="savings-card white">
+          <div class="savings-lbl">Ahorro en Factura</div>
+          <div class="savings-val" style="color:var(--dark)">${fmt(ahorroEur)}</div>
+          <div class="savings-sub" style="color:var(--teal)">${ahorroPct.toFixed(2)}% de reducción</div>
         </div>
-        <div class="savings-box">
-          <div class="lbl">Ahorro Estimado Anual</div>
-          <div class="val">${ahorroAnual.toLocaleString('es-ES', {maximumFractionDigits:2})} €</div>
-          <div class="sub">Gestion Group</div>
+        <div class="savings-card green">
+          <div class="savings-lbl">Ahorro Anual Estimado</div>
+          <div class="savings-val">${ahorroAnual.toLocaleString('es-ES', {maximumFractionDigits:0})} €</div>
+          <div class="savings-sub">Gestionado por Gestion Group</div>
         </div>
       </div>
 
       <div class="footer">
-        <div class="advisor-box">
-          <div class="info-lbl">Nombre del Asesor</div>
-          <div class="info-val" style="font-size:14px; margin-top:3px;">${asesor || '_________________________'}</div>
-          <div style="font-size:9px; color:#666; margin-top:5px;">Fecha Propuesta: ${fechaFmt(fechaProp)} &nbsp; | &nbsp; Validez: ${validezDias} días</div>
+        <div class="advisor">
+          <div class="info-lbl">Asesor Energético</div>
+          <div class="info-val" style="font-size:14px; margin-top:4px;">${asesor || '_________________________'}</div>
+          <div style="font-size:8px; color:var(--slate); margin-top:6px;">Fecha: ${fechaFmt(fechaProp)} | Validez: ${validezDias} días</div>
         </div>
         <div class="legal">
-          Los precios de potencia y energía incluyen todos los PEAJES/ATR. Los impuestos derivados al sector energético están incluidos.<br>
           De acuerdo con el derecho de información establecido en el artículo 12 del mismo RGPD y en base al artículo 11 de la LOPDGDD, se le facilita toda información sobre el tratamiento de sus datos personales.
         </div>
       </div>

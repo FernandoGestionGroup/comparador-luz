@@ -8,7 +8,7 @@ import traceback
 import re
 
 # --- FASTAPI INIT ---
-from fastapi import FastAPI, Body, Request, HTTPException, Depends
+from fastapi import FastAPI, Body, Request, HTTPException, Depends, UploadFile, File
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
@@ -20,6 +20,8 @@ import anthropic
 from openai import OpenAI
 try: from google import genai; from google.genai import types
 except: genai = None; types = None
+try: import fitz  # PyMuPDF
+except: fitz = None
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -163,6 +165,214 @@ def hash_pw_legacy(pw):
 def hash_pw_very_legacy(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
+# --- PDF EXTRACTION MODULE (PyMuPDF + Gemini) ---
+
+def safe_float(value):
+    """Convierte cualquier valor a float de forma robusta."""
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        # Limpiar formato europeo: "1.234,56" -> "1234.56"
+        cleaned = value.strip().replace('€', '').replace(' ', '')
+        if ',' in cleaned and '.' in cleaned:
+            cleaned = cleaned.replace('.', '').replace(',', '.')
+        elif ',' in cleaned:
+            cleaned = cleaned.replace(',', '.')
+        try:
+            return float(cleaned)
+        except (ValueError, TypeError):
+            return 0.0
+    return 0.0
+
+def safe_float_recursive(data):
+    """Convierte recursivamente todos los valores numéricos a float en un dict/list."""
+    if isinstance(data, dict):
+        result = {}
+        for k, v in data.items():
+            if isinstance(v, (dict, list)):
+                result[k] = safe_float_recursive(v)
+            elif isinstance(v, bool):
+                result[k] = v  # Preservar booleanos
+            elif isinstance(v, str):
+                # Solo convertir si parece numérico, no textos como CUPS/nombres
+                try:
+                    float(v.replace(',', '.').replace('€', '').strip())
+                    result[k] = safe_float(v)
+                except (ValueError, TypeError):
+                    result[k] = v
+            elif isinstance(v, (int, float)):
+                result[k] = float(v)
+            else:
+                result[k] = v
+        return result
+    elif isinstance(data, list):
+        return [safe_float_recursive(item) for item in data]
+    return data
+
+def unificar_costes_extra(data: dict) -> dict:
+    """Agrupa Alquiler de Equipos, IEE e IVA en costes_extra_total."""
+    alquiler = safe_float(data.get('alquiler_equipos', 0))
+    iee = safe_float(data.get('iee_act', 0))
+    iva = safe_float(data.get('iva_act', 0))
+    data['costes_extra_total'] = round(alquiler + iee + iva, 2)
+    return data
+
+def extraer_texto_pdf(pdf_bytes: bytes) -> str:
+    """Extrae texto de un PDF usando PyMuPDF. Devuelve string vacío si falla."""
+    if not fitz:
+        return ""
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        texto = ""
+        for page in doc:
+            texto += page.get_text() + "\n"
+        doc.close()
+        return texto.strip()
+    except Exception as e:
+        print(f"Error PyMuPDF: {e}")
+        return ""
+
+def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
+    """Envía el texto extraído del PDF a Gemini 1.5 Flash y devuelve un JSON estructurado."""
+    if not genai or not types:
+        raise Exception("Librería google-genai no disponible")
+    if not gemini_key:
+        raise Exception("No hay API Key de Google Gemini configurada. Configúrala en Ajustes > IA.")
+    
+    client = genai.Client(api_key=gemini_key)
+    
+    system_prompt = (
+        "Eres un experto senior en el sector eléctrico español. Tu tarea es extraer datos con precisión absoluta de facturas eléctricas.\n\n"
+        "REGLAS DE ORO:\n"
+        "1. TARIFA: Identifica 2.0TD (≤15kW), 3.0TD (>15kW) o 6.1TD (Alta Tensión).\n"
+        "2. PERIODOS: \n"
+        "   - 2.0TD: Extrae P1, P2 y P3.\n"
+        "   - 3.0TD/6.1TD: Extrae P1, P2, P3, P4, P5 y P6.\n"
+        "3. POTENCIA: Extrae kW contratados e importes (€) por cada periodo.\n"
+        "4. ENERGÍA: Extrae kWh consumidos, precios unitarios (€/kWh) e importes (€) por cada periodo.\n"
+        "5. AUTOCONSUMO: Si hay 'Compensación de excedentes' o 'Batería Virtual', extrae kWh y precio (€/kWh).\n"
+        "6. COSTES EXTRA: Extrae por separado: Alquiler de Equipos, Impuesto Eléctrico (IEE), IVA.\n"
+        "7. OTROS: CUPS (esencial), Comercializadora, Fechas, Reactiva, Excesos.\n\n"
+        "IMPORTANTE: Devuelve SOLO un JSON plano, sin markdown ni explicaciones.\n"
+        "TODOS los valores numéricos deben ser números (no strings).\n\n"
+        "FORMATO JSON REQUERIDO:\n"
+        '{"cliente":"","cups":"","comercializadora":"","direccion":"","cp":"","tarifa":"",'
+        '"potencia_kw":0,"dias":0,"fecha_inicio":"","total_factura":0,'
+        '"iva_pct":21,"iee_pct":5.1126963,"iee_act":0,"iva_act":0,"dto_energia_act_pct":0,'
+        '"tiene_autoconsumo":false,"autoconsumo_kwh":0,"autoconsumo_precio_kwh":0,"autoconsumo_total":0,'
+        '"potencia":[{"per":"P1","kw":0,"importe":0}],'
+        '"energia":[{"per":"P1","kwh":0,"precio":0}],'
+        '"lecturas_energia":[{"per":"P1","kwh":0}],'
+        '"precios_unitarios":{"potencia_p1":0,"potencia_p2":0,"energia_p1":0,"energia_p2":0,"energia_p3":0},'
+        '"extras_iee":[],"no_iee_extras":[],'
+        '"reactiva":0,"exceso_potencia":0,"alquiler_equipos":0,"bono_social":0,"servicio":0}'
+    )
+    
+    user_content = f"TEXTO COMPLETO DE LA FACTURA ELÉCTRICA:\n\n{texto_pdf}\n\nExtrae todos los datos en el formato JSON especificado."
+    
+    response = client.models.generate_content(
+        model="gemini-1.5-flash",
+        contents=[types.Content(role="user", parts=[types.Part.from_text(text=user_content)])],
+        config=types.GenerateContentConfig(system_instruction=system_prompt)
+    )
+    
+    text = response.text
+    # Extraer JSON de la respuesta
+    match = re.search(r'(\{.*\})', text, re.DOTALL)
+    if not match:
+        raise Exception("Gemini no devolvió un JSON válido")
+    
+    parsed = json.loads(match.group(1))
+    return parsed
+
+@app.post("/api/extract-pdf", dependencies=[Depends(get_current_user)])
+async def extract_pdf_endpoint(file: UploadFile = File(...)):
+    """Endpoint para extraer datos de factura desde un archivo PDF usando PyMuPDF + Gemini."""
+    
+    # 1. Validar que es un PDF
+    if not file.filename.lower().endswith('.pdf'):
+        return JSONResponse(status_code=400, content={"error": "Solo se aceptan archivos PDF. Para imágenes, use la extracción con IA estándar."})
+    
+    # 2. Verificar que PyMuPDF está disponible
+    if not fitz:
+        return JSONResponse(status_code=500, content={"error": "PyMuPDF (fitz) no está instalado en el servidor."})
+    
+    # 3. Leer el archivo
+    pdf_bytes = await file.read()
+    
+    # 4. Extraer texto con PyMuPDF
+    texto = extraer_texto_pdf(pdf_bytes)
+    
+    # 5. Verificar que hay texto extraíble (no es un PDF escaneado/imagen)
+    if len(texto) < 50:
+        return JSONResponse(status_code=422, content={
+            "error": "El PDF no contiene texto extraíble (posiblemente es una imagen escaneada). Se necesita OCR de imagen. Por favor, suba el archivo como imagen JPG/PNG y use la extracción con IA estándar.",
+            "tipo": "ocr_requerido"
+        })
+    
+    # 6. Obtener API Key de Gemini desde config
+    db = get_db()
+    gemini_key = None
+    if db:
+        cfg_doc = db.collection('config').document('global').get()
+        if cfg_doc.exists:
+            gemini_key = cfg_doc.to_dict().get('gemini_key')
+    
+    if not gemini_key:
+        return JSONResponse(status_code=400, content={
+            "error": "No hay API Key de Google Gemini configurada. Ve a Ajustes > Inteligencia Artificial y añade tu Gemini Key."
+        })
+    
+    # 7. Enviar a Gemini para extracción inteligente
+    try:
+        datos = extraer_datos_factura(texto, gemini_key)
+    except json.JSONDecodeError as e:
+        return JSONResponse(status_code=500, content={"error": f"Error al parsear la respuesta de Gemini: {str(e)}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Error en extracción con Gemini: {str(e)}"})
+    
+    # 8. Conversión robusta a float de todos los campos numéricos
+    # Campos que deben ser strings (no convertir)
+    string_fields = {'cliente', 'cups', 'comercializadora', 'direccion', 'cp', 'tarifa', 'fecha_inicio'}
+    for key, value in datos.items():
+        if key in string_fields:
+            datos[key] = str(value) if value else ""
+        elif key == 'tiene_autoconsumo':
+            datos[key] = bool(value)
+        elif isinstance(value, (list, dict)):
+            datos[key] = safe_float_recursive(value)
+        elif not isinstance(value, bool):
+            datos[key] = safe_float(value)
+    
+    # 9. Unificar costes extra (Alquiler + IEE + IVA)
+    datos = unificar_costes_extra(datos)
+    
+    # 10. Asegurar campos mínimos para compatibilidad con fillForm()
+    defaults = {
+        'potencia_kw': 0.0, 'dias': 0.0, 'total_factura': 0.0,
+        'iva_pct': 21.0, 'iee_pct': 5.1126963, 'iee_act': 0.0, 'iva_act': 0.0,
+        'dto_energia_act_pct': 0.0, 'tiene_autoconsumo': False,
+        'autoconsumo_kwh': 0.0, 'autoconsumo_precio_kwh': 0.0, 'autoconsumo_total': 0.0,
+        'reactiva': 0.0, 'exceso_potencia': 0.0, 'alquiler_equipos': 0.0,
+        'bono_social': 0.0, 'servicio': 0.0,
+        'potencia': [], 'energia': [], 'lecturas_energia': [],
+        'extras_iee': [], 'no_iee_extras': []
+    }
+    for k, v in defaults.items():
+        if k not in datos:
+            datos[k] = v
+    
+    return JSONResponse(status_code=200, content={
+        "ok": True,
+        "data": datos,
+        "costes_extra_total": datos.get('costes_extra_total', 0),
+        "texto_extraido_chars": len(texto),
+        "provider": "gemini-1.5-flash",
+        "metodo": "PyMuPDF + Gemini"
+    })
+
 # --- CALCULATION ENGINE ---
 
 def calculate_comision(oferta, d, comisiones):
@@ -197,6 +407,7 @@ def calculate_offer(d, o, comisiones):
     dias = d.get('dias', 0)
     pot_kw = d.get('potencia_kw', 0)
     sim_by_per = d.get('lec_by_per', {})
+    tarifa = d.get('tarifa', '2.0TD')
     
     periods = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']
     
@@ -204,6 +415,9 @@ def calculate_offer(d, o, comisiones):
     t_pot = 0
     for p in periods:
         pp_nva = o.get(f'pp_{p}', 0)
+        # Lógica especial 2.0TD: Si falta P2/P3 en la oferta, usar P1 o el anterior
+        if tarifa.startswith('2.0') and p == 'p2' and pp_nva == 0: pp_nva = o.get('pp_p1', 0)
+        
         if pp_nva > 0:
             t_pot += pot_kw * pp_nva * dias
             
@@ -217,15 +431,22 @@ def calculate_offer(d, o, comisiones):
     for i, p in enumerate(periods):
         kwh = sim_by_per.get(p.upper(), 0)
         precio = o.get(f'ep_{p}', 0)
+        # Fallback para 2.0TD: P3 suele ser igual a P2 o P1 si no se define
+        if tarifa.startswith('2.0') and p == 'p3' and precio == 0: precio = o.get('ep_p2', 0) or o.get('ep_p1', 0)
         
         dto = (o.get(f'dto_e_p{i+1}', 0) / 100) if is_discriminated else dto_global
         t_en += kwh * precio * (1 - dto)
         
-    # 3. Autoconsumo
+    # 3. Autoconsumo / Batería Virtual
     comp_nva = 0
+    es_bateria_virtual = o.get('tipo') == 'bateria_virtual' or o.get('bateria_virtual', False)
+    
     if d.get('tiene_autoconsumo'):
         comp_nva = d.get('autoconsumo_kwh', 0) * o.get('compensacion', 0)
-        
+        # En compensación simplificada (no batería virtual), no puede superar el término de energía
+        if not es_bateria_virtual:
+            comp_nva = min(comp_nva, t_en)
+            
     # 4. Otros conceptos
     rea = d.get('reactiva', 0)
     exc = d.get('exceso_potencia', 0)
@@ -235,8 +456,16 @@ def calculate_offer(d, o, comisiones):
     # Extras IEE
     extras_iee = sum(e.get('importe', 0) for e in d.get('iee_extras', []) if e.get('mantiene'))
     
-    # Base IEE
-    base_iee = t_pot + t_en + rea + exc + bon + extras_iee - comp_nva
+    # Base IEE: En Batería Virtual, la compensación puede reducir toda la base imponible
+    # Pero usualmente no puede compensar el Bono Social ni el Alquiler (depende de la comercializadora)
+    base_iee = (t_pot + t_en + rea + exc + bon + extras_iee) - comp_nva
+    if not es_bateria_virtual:
+        # Si no es batería virtual, lo mínimo es el término de potencia + otros
+        base_iee = max(base_iee, t_pot + rea + exc + bon + extras_iee)
+    else:
+        # En batería virtual puede llegar a 0 (o incluso saldo negativo para facturas futuras, pero aquí limitamos a 0)
+        base_iee = max(base_iee, 0)
+
     iee = base_iee * (d.get('iee_pct', 5.1126963) / 100)
     
     # Extras NO IEE
@@ -256,7 +485,7 @@ def calculate_offer(d, o, comisiones):
         'tipo': o.get('tipo'),
         'permanencia': o.get('permanencia'),
         'validez': o.get('validez'),
-        'total': total,
+        'total': max(total, alq), # Lo mínimo suele ser el alquiler si hay batería virtual infinita
         'comision': comision,
         'tPot': t_pot,
         'tEn': t_en,
@@ -264,7 +493,8 @@ def calculate_offer(d, o, comisiones):
         'iee': iee,
         'baseIEE': base_iee,
         'baseIVA': base_iva,
-        'iva': iva
+        'iva': iva,
+        'es_bateria': es_bateria_virtual
     }
 
 # --- API ROUTES ---
@@ -515,108 +745,99 @@ async def extract_invoice(body: dict = Body(...)):
     messages = body.get("messages", [])
     provider_manual = cfg.get("provider", "auto")
     
-    # 1. Detectar tipo de archivo
-    has_pdf = False
-    for m in messages:
-        c_list = m.get('content', [])
-        if isinstance(c_list, list):
-            for c in c_list:
-                m_type = c.get('source', {}).get('media_type', '')
-                if c.get('type') == 'document' or m_type == 'application/pdf':
-                    has_pdf = True
-                    break
-        if has_pdf: break
-
-    # 2. Mapeo de llaves disponibles
+    # 1. Mapeo de llaves y capacidades
     keys = {
         "google": cfg.get("gemini_key"),
-        "groq": cfg.get("openai_key") if (cfg.get("openai_url") and "groq" in cfg.get("openai_url")) else (cfg.get("openai_key") if cfg.get("provider")=="groq" else None),
         "openai": cfg.get("openai_key"),
-        "anthropic": cfg.get("api_key")
+        "anthropic": cfg.get("api_key"),
+        "groq": cfg.get("openai_key") if (cfg.get("openai_url") and "groq" in cfg.get("openai_url")) else (cfg.get("openai_key") if cfg.get("provider")=="groq" else None)
     }
-    if not keys["groq"] and cfg.get("openai_url") and "groq" in cfg.get("openai_url"): keys["groq"] = cfg.get("openai_key")
 
-    # 3. Decidir Proveedor Óptimo
-    selected = provider_manual
-    if has_pdf and keys["google"]:
-        selected = "google"
-    elif selected == "auto" or not selected:
-        if has_pdf:
-            selected = "google" if keys["google"] else ("anthropic" if keys["anthropic"] else "openai")
-        else:
-            selected = "groq" if keys["groq"] else ("openai" if keys["openai"] else ("google" if keys["google"] else "anthropic"))
-
-    if not keys.get(selected) and selected != "auto":
-        for p, k in keys.items():
-            if k: 
-                selected = p
-                break
-    provider = selected
+    # 2. Decidir Proveedor Óptimo (Prioridad: Gemini 2.0 Flash por coste/calidad)
+    priority = ["google", "anthropic", "openai", "groq"]
+    if provider_manual != "auto" and provider_manual in priority:
+        priority.remove(provider_manual)
+        priority.insert(0, provider_manual)
 
     system_prompt = (
-        "Eres un experto extractor de facturas eléctricas españolas (mercado libre y regulado). Tu precisión debe ser del 100%.\n\n"
-        "REGLAS CRÍTICAS:\n"
-        "1. IDENTIFICACIÓN DE TARIFA: Busca 'Tarifa de acceso', 'Peaje' o similar. Debe ser 2.0TD, 3.0TD o 6.1TD.\n"
-        "2. MAPEO DE PERIODOS:\n"
-        "   - Si es 2.0TD: Busca P1 (Punta), P2 (Llano) y P3 (Valle).\n"
-        "   - Si es 3.0TD o 6.1TD: Busca los 6 periodos (P1-P6).\n"
-        "3. DATOS DE POTENCIA Y ENERGÍA: Extrae kW, kWh e importes.\n"
-        "4. CAMPOS CLAVE: CUPS, Nombre, Dirección, CIF, Comercializadora, Total, Fechas, IEE, IVA.\n\n"
-        "ESTRUCTURA DE SALIDA (Solo JSON plano):\n"
-        "{\"cliente\":\"\",\"cups\":\"\",\"comercializadora\":\"\",\"direccion\":\"\",\"cp\":\"\",\"tarifa\":\"\",\"potencia_kw\":0,\"dias\":0,\"fecha_inicio\":\"\",\"total_factura\":0,\"iva_pct\":21,\"iee_pct\":5.1126963,\"iee_act\":0,\"iva_act\":0,\"potencia\":[],\"energia\":[],\"lecturas_energia\":[],\"extras_iee\":[]}"
+        "Eres un experto senior en el sector eléctrico español. Tu tarea es extraer datos con precisión absoluta de facturas eléctricas.\n\n"
+        "REGLAS DE ORO:\n"
+        "1. TARIFA: Identifica 2.0TD (≤15kW), 3.0TD (>15kW) o 6.1TD (Alta Tensión).\n"
+        "2. PERIODOS: \n"
+        "   - 2.0TD: Extrae P1, P2 y P3.\n"
+        "   - 3.0TD/6.1TD: Extrae P1, P2, P3, P4, P5 y P6.\n"
+        "3. POTENCIA: Extrae kW contratados e importes (€) por cada periodo.\n"
+        "4. ENERGÍA: Extrae kWh consumidos e importes (€) por cada periodo.\n"
+        "5. AUTOCONSUMO: Si hay 'Compensación de excedentes' o 'Batería Virtual', extrae los kWh y el precio (€/kWh).\n"
+        "6. OTROS: CUPS (esencial), Comercializadora, Fechas de facturación, IEE, IVA, Alquiler, Reactiva, Excesos.\n\n"
+        "SALIDA: Solo JSON plano, sin markdown.\n"
+        "FORMATO JSON:\n"
+        "{\"cliente\":\"\",\"cups\":\"\",\"comercializadora\":\"\",\"direccion\":\"\",\"cp\":\"\",\"tarifa\":\"\",\"potencia_kw\":0,\"dias\":0,\"fecha_inicio\":\"\",\"total_factura\":0,\"iva_pct\":21,\"iee_pct\":5.1126963,\"iee_act\":0,\"iva_act\":0,\"dto_energia_act_pct\":0,\"tiene_autoconsumo\":false,\"autoconsumo_kwh\":0,\"autoconsumo_precio_kwh\":0,\"autoconsumo_total\":0,\"potencia\":[{\"per\":\"P1\",\"kw\":0,\"importe\":0},...],\"energia\":[{\"per\":\"P1\",\"kwh\":0,\"precio\":0},...],\"lecturas_energia\":[],\"extras_iee\":[],\"no_iee_extras\":[],\"reactiva\":0,\"exceso_potencia\":0,\"alquiler_equipos\":0,\"bono_social\":0,\"servicio\":0}"
     )
 
-    try:
-        attempted_providers = []
-        priority = ["google", "anthropic", "openai"] if has_pdf else ["groq", "openai", "google", "anthropic"]
-        if provider_manual != "auto" and provider_manual in priority:
-            priority.remove(provider_manual); priority.insert(0, provider_manual)
+    attempted_providers = []
+    for provider in priority:
+        if not keys.get(provider): continue
+        attempted_providers.append(provider)
+        try:
+            text = ""
+            if provider == "google":
+                client = genai.Client(api_key=keys["google"])
+                contents = []
+                for m in messages:
+                    parts = []
+                    for c in m['content']:
+                        if c['type'] == 'text': parts.append(types.Part.from_text(text=c['text']))
+                        elif c['type'] in ['image', 'document']: 
+                            parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
+                    contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
+                
+                # Gemini 2.0 Flash es el modelo recomendado por el Ingeniero Senior
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash", 
+                    contents=contents, 
+                    config=types.GenerateContentConfig(system_instruction=system_prompt)
+                )
+                text = response.text
 
-        for provider in priority:
-            if not keys.get(provider): continue
-            attempted_providers.append(provider)
-            try:
-                text = ""
-                if provider == "anthropic":
-                    client = anthropic.Anthropic(api_key=keys["anthropic"])
-                    response = client.messages.create(model=cfg.get("model") or "claude-3-5-sonnet-latest", max_tokens=4096, system=system_prompt, messages=messages)
-                    text = response.content[0].text
-                elif provider == "google":
-                    client = genai.Client(api_key=keys["google"])
-                    contents = []
-                    for m in messages:
-                        parts = []
-                        for c in m['content']:
-                            if c['type'] == 'text': parts.append(types.Part.from_text(text=c['text']))
-                            elif c['type'] in ['image', 'document']: parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
-                        contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
-                    response = client.models.generate_content(model=cfg.get("model") or "gemini-2.0-flash", contents=contents, config=types.GenerateContentConfig(system_instruction=system_prompt))
-                    text = response.text
-                elif provider in ["openai", "groq"]:
-                    is_groq = (provider == "groq")
-                    b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
-                    client = OpenAI(api_key=keys["openai"], base_url=b_url)
-                    oa_messages = [{"role": "system", "content": system_prompt}]
-                    for m in messages:
-                        content = []
-                        for c in m['content']:
-                            if c['type'] == 'text': content.append({"type": "text", "text": c['text']})
-                            elif c['type'] == 'image': content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
-                        oa_messages.append({"role": m['role'], "content": content})
-                    response = client.chat.completions.create(model=cfg.get("model") or ("meta-llama/llama-4-scout-17b-16e-instruct" if is_groq else "gpt-4o-mini"), messages=oa_messages, max_tokens=4096, response_format={"type": "json_object"} if not is_groq else None)
-                    text = response.choices[0].message.content
+            elif provider == "anthropic":
+                client = anthropic.Anthropic(api_key=keys["anthropic"])
+                response = client.messages.create(
+                    model="claude-3-5-sonnet-latest", 
+                    max_tokens=4096, 
+                    system=system_prompt, 
+                    messages=messages
+                )
+                text = response.content[0].text
 
-                match = re.search(r'(\{.*\})', text, re.DOTALL)
-                if match: return JSONResponse(status_code=200, content={"text": match.group(1), "provider": provider})
-            except Exception as e:
-                print(f"Error con {provider}: {e}")
-                if any(x in str(e).lower() for x in ["429", "limit", "401", "key", "auth"]): continue
-                raise e
-        return JSONResponse(status_code=500, content={"error": f"Fallo en IAs: {attempted_providers}"})
-    except Exception as e:
-        print(f"ERROR EXTRACT: {str(e)}")
-        print(traceback.format_exc())
-        return JSONResponse(status_code=500, content={"error": f"Error durante la extracción: {str(e)}"})
+            elif provider in ["openai", "groq"]:
+                is_groq = (provider == "groq")
+                b_url = cfg.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
+                client = OpenAI(api_key=keys[provider], base_url=b_url)
+                oa_messages = [{"role": "system", "content": system_prompt}]
+                for m in messages:
+                    content = []
+                    for c in m['content']:
+                        if c['type'] == 'text': content.append({"type": "text", "text": c['text']})
+                        elif c['type'] == 'image': content.append({"type": "image_url", "image_url": {"url": f"data:{c['source']['media_type']};base64,{c['source']['data']}"}})
+                    oa_messages.append({"role": m['role'], "content": content})
+                
+                model_name = "gpt-4o-mini" if provider == "openai" else "llama-3.3-70b-versatile"
+                response = client.chat.completions.create(
+                    model=cfg.get("model") or model_name, 
+                    messages=oa_messages, 
+                    response_format={"type": "json_object"} if not is_groq else None
+                )
+                text = response.choices[0].message.content
+
+            match = re.search(r'(\{.*\})', text, re.DOTALL)
+            if match:
+                return JSONResponse(status_code=200, content={"text": match.group(1), "provider": provider})
+        except Exception as e:
+            print(f"Error con {provider}: {e}")
+            continue
+            
+    return JSONResponse(status_code=500, content={"error": f"Fallo en todos los proveedores de IA intentados: {attempted_providers}"})
 
 @app.get("/api/history", dependencies=[Depends(get_current_user)])
 async def get_history(user: dict = Depends(get_current_user)):
