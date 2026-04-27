@@ -68,10 +68,21 @@ async def verify_admin(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
     return user
 
-# --- PATH RESOLUTION (Vercel-Safe) ---
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parent
-STATIC_DIR = CURRENT_DIR / "static"
+# --- CONFIGURACIÓN DE RUTAS ESTÁTICAS (Robustas para Vercel/Local) ---
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "public"
+
+# Fallback: Si no existe en parent.parent, buscar en current dir (Vercel lambda structure)
+if not (STATIC_DIR / "index.html").exists():
+    STATIC_DIR = Path(__file__).resolve().parent / "public"
+
+print(f"Directorio Estático detectado: {STATIC_DIR}")
+
+@app.get("/")
+async def read_index():
+    idx = STATIC_DIR / "index.html"
+    if idx.exists(): return FileResponse(str(idx))
+    return {"status": "ok", "msg": "Frontend no detectado", "path": str(STATIC_DIR)}
 
 # --- LAZY DATABASE & MODELS ---
 _STORAGE = {"db": None}
@@ -620,21 +631,13 @@ async def save_history(body: dict = Body(...), user: dict = Depends(get_current_
     db.collection('_history').add(doc)
     return {'ok': True}
 
-# --- SERVIDO DE ARCHIVOS ESTÁTICOS (Fallback para Vercel) ---
-STATIC_DIR = Path(__file__).parent.parent / "public"
-
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-    @app.get("/")
-    async def read_index():
-        return FileResponse(str(STATIC_DIR / "index.html"))
-
-    @app.get("/{path:path}")
-    async def catch_all(path: str):
-        # Si la ruta existe en /public, la servimos
-        file_path = STATIC_DIR / path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(str(file_path))
-        # Si no, devolvemos el index (para SPA)
-        return FileResponse(str(STATIC_DIR / "index.html"))
+@app.get("/{path:path}")
+async def catch_all(path: str):
+    if path.startswith("api/"): return {"error": "Not Found"}
+    file_path = STATIC_DIR / path
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(str(file_path))
+    # SPA Fallback
+    idx = STATIC_DIR / "index.html"
+    if idx.exists(): return FileResponse(str(idx))
+    return {"error": "File not found", "path": path}
