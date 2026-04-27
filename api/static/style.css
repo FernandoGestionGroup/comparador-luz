@@ -298,3 +298,32 @@ body {
 }
 .btn-primary:active { transform: translateY(0); }
 
+/* --- SETTINGS SIDEBAR --- */
+.com-item {
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--tx-dim);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 4px;
+}
+.com-item:hover {
+  background: var(--bg-input);
+  color: var(--tx-main);
+}
+.com-item.active {
+  background: white;
+  color: var(--primary);
+  border-color: var(--primary-glow);
+  box-shadow: 0 4px 12px rgba(44, 181, 173, 0.1);
+}
+.com-item.admin-only {
+  border-left: 3px solid var(--warn);
+}
+
