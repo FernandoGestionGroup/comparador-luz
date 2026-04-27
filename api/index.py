@@ -241,7 +241,7 @@ def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
     if not gemini_key:
         raise Exception("No hay API Key de Google Gemini configurada. Configúrala en Ajustes > IA.")
     
-    client = genai.Client(api_key=gemini_key, http_options={'api_version': 'v1'})
+    client = genai.Client(api_key=gemini_key)
     
     system_prompt = (
         "Eres un experto senior en el sector eléctrico español. Tu tarea es extraer datos con precisión absoluta de facturas eléctricas.\n\n"
@@ -273,7 +273,7 @@ def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
     user_content = f"TEXTO COMPLETO DE LA FACTURA ELÉCTRICA:\n\n{texto_pdf}\n\nExtrae todos los datos en el formato JSON especificado."
     
     response = client.models.generate_content(
-        model="gemini-1.5-flash-latest",
+        model="gemini-1.5-flash",
         contents=[types.Content(role="user", parts=[types.Part.from_text(text=user_content)])],
         config=types.GenerateContentConfig(system_instruction=system_prompt)
     )
