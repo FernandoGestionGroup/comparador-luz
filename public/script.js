@@ -17,7 +17,7 @@ const I18N = {
     "kW": "kW", "IMPORTE (€)": "AMOUNT (€)", "Importe (€)": "Amount (€)", "kWh": "kWh", "€/kWh": "€/kWh", "Per.": "Per.",
     "Autoconsumo": "Autoconsum", "Esta factura tiene autoconsumo": "This invoice has self-consumption", "kWh GENERADOS / COMPENSADOS": "GENERATED / COMPENSATED kWh",
     "€/kWh PRECIO COMPENSACIÓN ACTUAL": "CURRENT €/kWh COMPENSATION PRICE", "TOTAL COMPENSACIÓN (€)": "TOTAL COMPENSATION (€)", "La compensación se calculará automáticamente: kWh × €/kWh": "Compensation calculated automatically: kWh × €/kWh",
-    "kWh Compensados": "Compensated kWh", "€/kWh Compensación": "€/kWh Compensation", "Total Compensación (€)": "Total Compensation (€)",
+    "kWh Compensados": "Compensated kWh", "€/kWh Compensation": "€/kWh Compensation", "Total Compensation (€)": "Total Compensation (€)",
     "Conceptos adicionales": "Additional concepts", "ENERGÍA REACTIVA (€)": "REACTIVE ENERGY (€)", "EXCESO POTENCIA (€)": "POWER EXCESS (€)", "ALQUILER EQUIPOS (€)": "EQUIPMENT RENTAL (€)",
     "BONO SOCIAL / FINANCIACIÓN (€)": "SOCIAL BONUS / FINANCING (€)", "SERVICIO / OTROS (€)": "SERVICE / OTHERS (€)", "solo factura actual": "only current invoice",
     "Reactiva (€)": "Reactive (€)", "Exceso Potencia (€)": "Power Excess (€)", "Alquiler Equipos (€)": "Equipment Rental (€)",
@@ -70,7 +70,7 @@ const I18N = {
     "NOMBRE DEL ASESOR": "NOM DE L'ASSESSOR", "FECHA DE LA PROPUESTA": "DATA DE LA PROPOSTA", "Subir factura": "Pujar factura", "Haz clic o arrastra archivos aquí": "Fes clic o arrossega fitxers aquí",
     "PDF o imágenes JPG/PNG · múltiples páginas permitido": "PDF o imatges JPG/PNG · Múltiples pàgines permeses", "✦ Extraer con IA": "✦ Extreure amb IA", "Cambiar archivos": "Canviar fitxers",
     "Consumo Anual del CUPS": "Consum Anual del CUPS", "CONSUMO ANUAL TOTAL (kWh)": "CONSUM ANUAL TOTAL (kWh)", "POTENCIA CONTRATADA (kW)": "POTÈNCIA CONTRACTADA (kW)", "TARIFA DETECTADA": "TARIFA DETECTADA",
-    "Datos del cliente": "Dades del client", "CLIENTE / RAZÓN SOCIAL": "CLIENT / RAÓ SOCIAL", "Cliente / Razón Social": "Client / Raó Social", "CUPS": "CUPS",
+    "Datos del client": "Dades del client", "CLIENTE / RAZÓN SOCIAL": "CLIENT / RAÓ SOCIAL", "Cliente / Razón Social": "Client / Raó Social", "CUPS": "CUPS",
     "COMERCIALIZADORA ACTUAL": "COMERCIALITZADORA ACTUAL", "Comercializadora Actual": "Comercialitzadora Actual", "DIRECCIÓN": "ADREÇA", "CÓDIGO POSTAL": "CODI POSTAL", "TARIFA": "TARIFA",
     "Parámetros de facturación": "Paràmetres de facturació", "DÍAS FACTURADOS": "DIES FACTURATS", "Días facturados": "Dies facturats", "FECHA INICIO PERÍODO": "DATA INICI PERÍODE", "Fecha Inicio": "Data Inici", "TOTAL FACTURA (€) ⚠": "TOTAL FACTURA (€) ⚠", "Total Factura (€)": "Total Factura (€)",
     "IVA / IGIC (%)": "IVA / IGIC (%)", "IVA (%)": "IVA (%)", "IEE (%)": "IEE (%)", "IEE FACTURA ACTUAL (€)": "IEE FACTURA ACTUAL (€)", "IVA FACTURA ACTUAL (€)": "IVA FACTURA ACTUAL (€)", "DESCUENTO ENERGÍA ACTUAL (%)": "DESCOMPTE ENERGIA ACTUAL (%)",
@@ -85,7 +85,7 @@ const I18N = {
     "kWh Compensados": "kWh Compensats", "€/kWh Compensación": "€/kWh Compensació", "Total Compensación (€)": "Total Compensació (€)",
     "Conceptos adicionales": "Conceptes addicionals", "ENERGÍA REACTIVA (€)": "ENERGIA REACTIVA (€)", "EXCESO POTENCIA (€)": "EXCÉS POTÈNCIA (€)", "ALQUILER EQUIPOS (€)": "LLOGUER EQUIPS (€)",
     "BONO SOCIAL / FINANCIACIÓN (€)": "BO SOCIAL / FINANÇAMENT (€)", "SERVICIO / OTROS (€)": "SERVEI / ALTRES (€)", "solo factura actual": "només factura actual",
-    "Reactiva (€)": "Reactiva (€)", "Exceso Potencia (€)": "Excés Potència (€)", "Alquiler Equipos (€)": "Lloguer Equips (€)",
+    "Reactiva (€)": "Reactiva (€)", "Exceso Potencia (€)": "Excés Potència (€)", "Alquiler Equips (€)": "Lloguer Equips (€)",
     "Otros conceptos sujetos a IEE": "Altres conceptes subjectes a IEE", "+ Añadir concepto": "+ Afegir concepte", "Siguiente → Comparativa": "Següent → Comparativa", "← Volver": "← Tornar",
     "Facturación actual": "Facturació actual", "Ranking de ofertas": "Rànquing d'ofertes", "Oferta seleccionada": "Oferta seleccionada", "📄 Generar PDF para comercial": "📄 Generar PDF per a comercial",
     "Base de Datos de Ofertas": "Base de Dades d'Ofertes", "Tarifas disponibles · se guardan en archivo local": "Tarifes disponibles · Es guarden a l'arxiu local", "+ Nueva Oferta": "+ Nova Oferta",
@@ -93,11 +93,11 @@ const I18N = {
     "👤 Gestión de Usuarios": "👤 Gestió d'Usuaris", "+ Nuevo usuario": "+ Nou usuari", "+ Nuevo Usuario": "+ Nou Usuari", "Cancelar": "Cancel·lar", "Guardar": "Desar", "Guardar Oferta": "Desar Oferta",
     "Comicionador": "Comissionat", "Comercializadoras": "Comercialitzadores", "Añadir Tramo": "Afegir Tram", "Guardar Cambios": "Desar Canvis", "Eliminar Empresa": "Eliminar Empresa",
     "Escalado de Comisiones (Tramos)": "Escalat de Comissions (Trams)", "Selecciona una comercializadora para configurar sus comisiones.": "Selecciona una comercialitzadora per configurar les seves comissions.",
-    "NOMBRE DE LA OFERTA": "NOM DE L'OFERTA", "COMERCIALIZADORA": "COMERCIALITZADORA", "TIPO DE PRECIO": "TIPUS DE PREU", "PERMANENCIA": "PERMANÈNCIA", "VALIDEZ (días)": "VALIDESA (dies)",
+    "NOMBRE DE LA OFERTA": "NOM DE L'OFERTA", "COMERCIALIZADORA": "COMERCIALITZADORA", "TIPO DE PRECIO": "TIPUS DE PREU", "PERMANENCIA": "PERMANÈNCIA", "VALIDEZ (dies)": "VALIDESA (dies)",
     "Rango de aplicación": "Rang d'aplicació", "POT. MÍNIMA (kW)": "POT. MÍNIMA (kW)", "POT. MÁXIMA (kW)": "POT. MÀXIMA (kW)", "CONSUMO MÍN. (kWh/año)": "CONSUM MÍN. (kWh/any)", "CONSUMO MÁX. (kWh/año)": "CONSUM MÀX. (kWh/any)",
-    "Comisión": "Comissió", "TIPO DE COMISIÓN": "TIPUS DE COMISSIÓ", "€ Fijo por contrato": "€ Fix per contracte", "Por consumo (Coef. × kWh × FEE / 1000)": "Per consum",
-    "COMISIÓN FIJA (€)": "COMISSIÓ FIXA (€)", "COEFICIENTE REPARTO (%)": "COEFICIENT REPARTIMENT (%)", "FEE (€/MWh)": "FEE (€/MWh)", "RESULTADO (se calcula automático)": "RESULTAT (es calcula automàticament)",
-    "COMPENSACIÓN AUTOCONSUMO (€/kWh)": "COMPENSACIÓ AUTOCONSUM (€/kWh)", "DESCUENTO POTENCIA (%)": "DESCOMPTE POTÈNCIA (%)", "DESCUENTO ENERGÍA GLOBAL (%)": "DESCOMPTE ENERGIA GLOBAL (%)",
+    "Comisión": "Comissió", "TIPO DE COMISIÓN": "TIPUS DE COMISSIÓ", "€ Fix per contracte": "€ Fix per contracte", "Por consumo (Coef. × kWh × FEE / 1000)": "Per consum",
+    "COMISIÓN FIJA (€)": "COMISSIÓ FIXA (€)", "COEFICIENTE REPARTIMENT (%)": "COEFICIENT REPARTIMENT (%)", "FEE (€/MWh)": "FEE (€/MWh)", "RESULTADO (se calcula automático)": "RESULTAT (es calcula automàticament)",
+    "COMPENSACIÓN AUTOCONSUM (€/kWh)": "COMPENSACIÓ AUTOCONSUM (€/kWh)", "DESCUENTO POTENCIA (%)": "DESCOMPTE POTÈNCIA (%)", "DESCUENTO ENERGÍA GLOBAL (%)": "DESCOMPTE ENERGIA GLOBAL (%)",
     "Discriminar dto. energía por periodo": "Discriminar dte. energia per període", "Precios de potencia (€/kW/día)": "Preus de potència (€/kW/dia)", "Precios de energía (€/kWh)": "Preus d'energia (€/kWh)",
     "NOMBRE": "NOM", "EMAIL": "EMAIL", "CONTRASEÑA": "CONTRASENYA", "(dejar vacío para no cambiar)": "(deixar buit per no canviar)", "PERFIL": "PERFIL",
     "Admin": "Admin", "Comercial": "Comercial", "Administración": "Administració",
@@ -107,9 +107,9 @@ const I18N = {
     "ESTUDIO COMPARATIVO ENERGÉTICO": "ESTUDI COMPARATIU ENERGÈTIC", "Preparado el": "Preparat el", "Válido": "Vàlid per", "días": "dies",
     "OFERTA": "OFERTA", "TIPO": "TIPUS", "FACTURACIÓN ACTUAL": "FACTURACIÓ ACTUAL", "NUEVA FACTURACIÓN": "NOVA FACTURACIÓ",
     "T. FIJO — POTENCIA": "T. FIX — POTÈNCIA", "T. VARIABLE — ENERGÍA": "T. VARIABLE — ENERGIA", "OTROS CONCEPTOS": "ALTRES CONCEPTES", "IMPUESTOS Y OTROS": "IMPOSTOS I ALTRES",
-    "TOTALES": "TOTALS", "TOTAL POTENCIA": "TOTAL POTÈNCIA", "TOTAL ENERGÍA": "TOTAL ENERGIA", "TOTAL": "TOTAL", "Base Imponible": "Base Imposable",
+    "TOTALES": "TOTALS", "TOTAL POTENCIA": "TOTAL POTÈNCIA", "TOTAL ENERGÍA": "TOTAL ENERGIA", "TOTAL": "TOTAL", "Base Imposable": "Base Imposable",
     "Compensación Autoconsumo": "Compensació Autoconsum", "Energía Reactiva": "Energia Reactiva", "Alquiler Equipos": "Lloguer Equips",
-    "Financiación Bono Social": "Finançament Bo Social", "Servicios": "Serveis", "Imp. Electricidad (IEE)": "Imp. Electricitat (IEE)",
+    "Financiación Bono Social": "Finançament Bo Social", "Serveis": "Serveis", "Imp. Electricidad (IEE)": "Imp. Electricitat (IEE)",
     "AHORRO ESTIMADO EN FACTURA": "ESTALVI ESTIMAT A LA FACTURA", "Ahorro anual estimado": "Estalvi anual estimat", "año": "any", "€/año": "€/any",
     "Los precios de potencia y energía incluyen todos los PEAJES/ATR.": "Els preus de potència i energia inclouen tots els PEATGES/ATR.",
     "Cálculos de carácter informativo no vinculantes.": "Càlculs de caràcter informatiu no vinculants.", "Fecha propuesta": "Data proposta", "Nombre del Asesor": "Nom de l'Assessor",
@@ -117,13 +117,13 @@ const I18N = {
     "Tarifa": "Tarifa", "PER.": "PER.", "€/kW·día": "€/kW·dia", "DTO.": "DTE.", "IVA": "IVA",
     "Lecturas Reales": "Lectures Reals", "kWh (lectura)": "kWh (lectura)",
     "Asesor y Fecha": "Assessor i Data", "Asesor Comercial": "Assessor Comercial", "Fecha": "Data", "Parámetros CUPS": "Paràmetres CUPS",
-    "Consumo Anual (kWh)": "Consum Anual (kWh)", "Potencia Contratada (kW)": "Potència Contractada (kW)", "Tarifa ≥3.0: hasta 6 periodos de potencia": "Tarifa ≥3.0: fins a 6 períodes de potència",
+    "Consumo Anual (kWh)": "Consum Anual (kWh)", "Potencia Contractada (kW)": "Potència Contractada (kW)", "Tarifa ≥3.0: hasta 6 periodos de potencia": "Tarifa ≥3.0: fins a 6 períodes de potència",
     "Documentación": "Documentació", "Módulos": "Mòduls", "General": "General", "Ajustes Globales": "Ajustos Globals", "Ajustes Globales y Personalización": "Ajustos Globals i Personalització",
     "Inteligencia Artificial": "Intel·ligència Artificial", "Usuarios": "Usuaris", "Datos / Backup": "Dades / Backup", "Idioma de la Interfaz": "Idioma de la Interfície",
     "Mis Datos Personales": "Les Meves Dades Personals", "Nombre del Asesor (Aparecerá en los estudios)": "Nom de l'Assessor (Apareixerà als estudis)", "Email de acceso": "Email d'accés",
     "Nueva Contraseña (dejar vacío para no cambiar)": "Nova Contrasenya (deixar buit per no canviar)", "Guardar Configuración y Perfil": "Desar Configuració i Perfil",
     "Estos valores se autocompletarán por defecto en nuevas simulaciones.": "Aquests valors s'emplenaran per defecte a les noves simulacions.",
-    "Nombre de la Empresa (Cabecera PDF)": "Nom de l'Empresa (Capçalera PDF)", "Texto legal (Pie de página PDF)": "Text legal (Peu de pàgina PDF)", "Guardar Ajustes Globales": "Desar Ajustos Globals",
+    "Nombre de la Empresa (Cabecera PDF)": "Nom de l'Empresa (Capçalera PDF)", "Texto legal (Pie de página PDF)": "Text legal (Peu de pàgina PDF)", "Guardar Ajustos Globals": "Desar Ajustos Globals",
     "Configuración IA": "Configuració IA", "Proveedor": "Proveïdor", "API Key Anthropic": "API Key Anthropic", "API Key Google": "API Key Google", "API Key OpenAI": "API Key OpenAI", "Guardar Configuración": "Desar Configuració",
     "Gestión de Usuarios": "Gestió d'Usuaris", "Editar Usuario": "Editar Usuari", "Nombre": "Nom", "Rol": "Rol", "Contraseña": "Contrasenya", "Guardar Usuario": "Desar Usuari",
     "Exporta o importa las bases de datos locales (Ofertas y Comisiones) como archivos JSON.": "Exporta o importa les bases de dades locals (Ofertes i Comissions) com a arxius JSON.",
@@ -225,7 +225,7 @@ async function initApp(){
   await Promise.all([loadConfig(), loadOfertas(), loadUsuarios(), loadComisiones()]);
   $('cfg_provider').value = ST.config.provider || 'anthropic';
   $('cfg_model').value = ST.config.model || '';
-  $('cfg_openaiurl').value = ST.config.openai_url || 'https://api.openai.com/v1';
+  $('cfg_openai_url').value = ST.config.openai_url || 'https://api.openai.com/v1';
   $('cfg_idioma').value = ST.config.idioma||'es';
   
   if(isAdmin) {
@@ -284,7 +284,7 @@ async function saveConfig(){
   if(key_gem) ST.config.gemini_key = key_gem;
   if(key_oa) ST.config.openai_key = key_oa;
   if(p === 'openai' || p === 'groq'){
-    ST.config.openai_url = $('cfg_openaiurl').value.trim();
+    ST.config.openai_url = $('cfg_openai_url').value.trim();
     if(p==='groq' && !ST.config.openai_url) ST.config.openai_url = 'https://api.groq.com/openai/v1';
   }
   

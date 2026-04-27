@@ -14,6 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 
 import uuid
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI()
 
@@ -27,8 +30,9 @@ app.add_middleware(
 
 # --- SECURITY ---
 API_KEY_HEADER = APIKeyHeader(name="X-API-KEY", auto_error=False)
-MASTER_API_KEY = os.environ.get("MASTER_API_KEY", "GG_STUDIO_2026_DEFAULT")
+MASTER_API_KEY = os.environ.get("MASTER_API_KEY") # Sin valor por defecto por seguridad
 PASSWORD_SALT = os.environ.get("PASSWORD_SALT", "GG_STUDIO_SALT_PROTECT_2026")
+SESSION_EXPIRE_SECONDS = 86400 # 24 horas
 
 async def get_current_user(api_key: str = Depends(API_KEY_HEADER)):
     if not api_key:
@@ -48,7 +52,14 @@ async def get_current_user(api_key: str = Depends(API_KEY_HEADER)):
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid or expired session")
     
     sdata = session.to_dict()
-    # Aquí se podría añadir validación de expiración (sdata['expires'])
+    
+    # Validación de expiración
+    created_at = sdata.get('created_at', 0)
+    if time.time() - created_at > SESSION_EXPIRE_SECONDS:
+        # Opcional: eliminar sesión expirada
+        # db.collection('_sessions').document(api_key).delete()
+        raise HTTPException(status_code=401, detail="Unauthorized: Session expired")
+        
     return sdata
 
 async def verify_admin(user: dict = Depends(get_current_user)):
@@ -105,10 +116,117 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 def hash_pw(pw):
-    return hashlib.sha256((pw + PASSWORD_SALT).encode()).hexdigest()
+    return pwd_context.hash(pw + PASSWORD_SALT)
+
+def verify_pw(plain_pw, hashed_pw):
+    return pwd_context.verify(plain_pw + PASSWORD_SALT, hashed_pw)
 
 def hash_pw_legacy(pw):
+    return hashlib.sha256((pw + PASSWORD_SALT).encode()).hexdigest()
+
+def hash_pw_very_legacy(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
+
+# --- CALCULATION ENGINE ---
+
+def calculate_comision(oferta, d, comisiones):
+    pot = d.get('potencia_kw', 0)
+    consumo = d.get('consumo_anual', 0)
+    dias = d.get('dias', 0)
+    
+    def clean_str(s):
+        return (s or "").lower().strip()
+        
+    co_name = clean_str(oferta.get('comercializadora'))
+    regla = next((c for c in comisiones if clean_str(c.get('comercializadora')) == co_name), None)
+    
+    if regla and regla.get('tramos'):
+        for t in regla['tramos']:
+            try:
+                match_pot = pot >= float(t.get('p_min', 0)) and pot < float(t.get('p_max', 9999))
+                match_cons = consumo >= float(t.get('c_min', 0)) and consumo < float(t.get('c_max', 99999999))
+                
+                filtro = clean_str(t.get('filtro'))
+                match_name = not filtro or filtro in clean_str(oferta.get('nombre'))
+                
+                if match_pot and match_cons and match_name:
+                    if t.get('tipo') == 'variable':
+                        return float(t.get('valor', 0)) * (consumo / 1000)
+                    return float(t.get('valor', 0)) * (dias / 365)
+            except: continue
+                
+    return float(oferta.get('comision', 0)) * (dias / 365)
+
+def calculate_offer(d, o, comisiones):
+    dias = d.get('dias', 0)
+    pot_kw = d.get('potencia_kw', 0)
+    sim_by_per = d.get('lec_by_per', {})
+    
+    periods = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']
+    
+    # 1. Potencia
+    t_pot = 0
+    for p in periods:
+        pp_nva = o.get(f'pp_{p}', 0)
+        if pp_nva > 0:
+            t_pot += pot_kw * pp_nva * dias
+            
+    t_pot *= (1 - o.get('dto_potencia', 0) / 100)
+    
+    # 2. Energía
+    t_en = 0
+    dto_global = o.get('dto_energia_global', 0) / 100
+    is_discriminated = o.get('dto_energia_por_periodo', False)
+    
+    for i, p in enumerate(periods):
+        kwh = sim_by_per.get(p.upper(), 0)
+        precio = o.get(f'ep_{p}', 0)
+        
+        dto = (o.get(f'dto_e_p{i+1}', 0) / 100) if is_discriminated else dto_global
+        t_en += kwh * precio * (1 - dto)
+        
+    # 3. Autoconsumo
+    comp_nva = 0
+    if d.get('tiene_autoconsumo'):
+        comp_nva = d.get('autoconsumo_kwh', 0) * o.get('compensacion', 0)
+        
+    # 4. Otros conceptos
+    rea = d.get('reactiva', 0)
+    exc = d.get('exceso_potencia', 0)
+    alq = d.get('alquiler_equipos', 0)
+    bon = d.get('bono_social', 0)
+    
+    # Extras IEE
+    extras_iee = sum(e.get('importe', 0) for e in d.get('iee_extras', []) if e.get('mantiene'))
+    
+    # Base IEE
+    base_iee = t_pot + t_en + rea + exc + bon + extras_iee - comp_nva
+    iee = base_iee * (d.get('iee_pct', 5.1126963) / 100)
+    
+    # Base IVA
+    base_iva = base_iee + iee + alq
+    iva = base_iva * (d.get('iva_pct', 21) / 100)
+    
+    total = base_iva + iva
+    comision = calculate_comision(o, d, comisiones)
+    
+    return {
+        'id': o.get('id'),
+        'nombre': o.get('nombre'),
+        'comercializadora': o.get('comercializadora'),
+        'tipo': o.get('tipo'),
+        'permanencia': o.get('permanencia'),
+        'validez': o.get('validez'),
+        'total': total,
+        'comision': comision,
+        'tPot': t_pot,
+        'tEn': t_en,
+        'compNva': comp_nva,
+        'iee': iee,
+        'baseIEE': base_iee,
+        'baseIVA': base_iva,
+        'iva': iva
+    }
 
 # --- API ROUTES ---
 
@@ -131,24 +249,28 @@ async def login(body: dict = Body(...)):
     if not db: return {'ok': False, 'error': 'Database Connection Error'}
     email = body.get('email', '').strip().lower()
     password_plain = body.get('password', '')
-    pw_new = hash_pw(password_plain)
-    pw_old = hash_pw_legacy(password_plain)
-    
-    q = db.collection('usuarios').where('email', '==', email).limit(1).get()
-    if not q: return {'ok': False, 'error': 'Credenciales incorrectas'}
-    
-    u = q[0].to_dict()
-    stored_pw = u.get('password')
-    
+    # Verificación de contraseña (soporta migraciones)
     is_valid = False
-    if stored_pw == pw_new:
-        is_valid = True
-    elif stored_pw == pw_old:
-        # Migración transparente al nuevo hash con salt
-        db.collection('usuarios').document(u['id']).update({'password': pw_new})
-        is_valid = True
+    if stored_pw.startswith("$2b$") or stored_pw.startswith("$2a$"):
+        if verify_pw(password_plain, stored_pw):
+            is_valid = True
+    else:
+        # Legacy checks
+        pw_sha_salt = hash_pw_legacy(password_plain)
+        pw_sha_no_salt = hash_pw_very_legacy(password_plain)
+        
+        if stored_pw == pw_sha_salt or stored_pw == pw_sha_no_salt:
+            is_valid = True
+            # Migración automática a bcrypt
+            db.collection('usuarios').document(u['id']).update({'password': hash_pw(password_plain)})
         
     if is_valid:
+        # Limpieza de sesiones antiguas del mismo usuario (opcional pero recomendado)
+        old_sessions = db.collection('_sessions').where('id', '==', u['id']).stream()
+        for oses in old_sessions:
+            if time.time() - oses.to_dict().get('created_at', 0) > SESSION_EXPIRE_SECONDS:
+                db.collection('_sessions').document(oses.id).delete()
+
         # Generar Token de sesión único
         session_token = str(uuid.uuid4())
         user_data = {'id': u['id'], 'nombre': u['nombre'], 'email': u['email'], 'role': u['role']}
@@ -172,8 +294,18 @@ async def get_config():
     if not db: return {"provider": "anthropic"}
     d = db.collection('config').document('global').get()
     cfg = d.to_dict() if d.exists else {}
-    safe = {k: v for k, v in cfg.items() if k not in ['api_key', 'gemini_key', 'openai_key']}
-    for k in ['api_key', 'gemini_key', 'openai_key']: safe[f'has_{k}'] = bool(cfg.get(k))
+    
+    # Whitelist de campos seguros para el frontend
+    public_keys = [
+        'provider', 'model', 'idioma', 'openai_url', 
+        'glo_empresa', 'glo_pie'
+    ]
+    safe = {k: cfg.get(k) for k in public_keys if k in cfg}
+    
+    # Flags de presencia de llaves (sin revelar el valor)
+    for k in ['api_key', 'gemini_key', 'openai_key']: 
+        safe[f'has_{k}'] = bool(cfg.get(k))
+        
     return safe
 
 @app.post("/api/config", dependencies=[Depends(verify_admin)])
@@ -247,6 +379,40 @@ async def manage_usuarios(body: dict = Body(...)):
     elif action == 'delete' and uid:
         ref.document(uid).delete()
     return {'ok': True}
+
+@app.post("/api/calculate", dependencies=[Depends(get_current_user)])
+async def calculate_comparison(body: dict = Body(...)):
+    db = get_db()
+    if not db: return JSONResponse(status_code=500, content={"error": "Database error"})
+    
+    # 1. Obtener datos necesarios
+    d = body.get('invoice_data', {})
+    if not d: return JSONResponse(status_code=400, content={"error": "No invoice data provided"})
+    
+    # 2. Obtener ofertas y reglas de comisionado
+    ofertas = [doc.to_dict() for doc in db.collection('ofertas').stream()]
+    comisiones = [doc.to_dict() for doc in db.collection('comisiones').stream()]
+    
+    # 3. Filtrar y calcular
+    results = []
+    tarifa_d = d.get('tarifa', '2.0TD')
+    pot_kw = d.get('potencia_kw', 0)
+    
+    for o in ofertas:
+        # Filtrado básico
+        if o.get('tarifa') != 'todas' and o.get('tarifa') != tarifa_d: continue
+        try:
+            if pot_kw < float(o.get('pot_min', 0)) or pot_kw > float(o.get('pot_max', 9999)): continue
+        except: continue
+        
+        # Calcular
+        res = calculate_offer(d, o, comisiones)
+        results.append(res)
+        
+    # Ordenar por comisión (desc) y luego por total (asc)
+    results.sort(key=lambda x: (-x['comision'], x['total']))
+    
+    return results
 
 @app.post("/api/extract", dependencies=[Depends(get_current_user)])
 async def extract_invoice(body: dict = Body(...)):
@@ -363,22 +529,5 @@ async def extract_invoice(body: dict = Body(...)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "Error durante la extracción"})
 
-# --- SERVING FRONTEND (VERCEL SAFE) ---
-@app.get("/")
-async def serve_root():
-    index = STATIC_DIR / "index.html"
-    if index.exists(): return FileResponse(str(index))
-    alt_index = CURRENT_DIR / "static" / "index.html"
-    if alt_index.exists(): return FileResponse(str(alt_index))
-    return JSONResponse({"error": "index.html not found"})
-
-@app.get("/{path:path}")
-async def serve_static(path: str):
-    if path.startswith("api/"): return JSONResponse({"error": "Route not found"}, status_code=404)
-    file = STATIC_DIR / path
-    if file.is_file(): return FileResponse(str(file))
-    alt_file = CURRENT_DIR / "static" / path
-    if alt_file.is_file(): return FileResponse(str(alt_file))
-    index = STATIC_DIR / "index.html"
-    if index.exists(): return FileResponse(str(index))
-    return JSONResponse({"error": f"File {path} not found"})
+# Nota: Las rutas estáticas (/) y (/{path}) han sido eliminadas.
+# Vercel sirve ahora el contenido de la carpeta /public de forma nativa para mejor rendimiento.
