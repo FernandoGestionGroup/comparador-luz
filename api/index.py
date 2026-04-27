@@ -620,5 +620,21 @@ async def save_history(body: dict = Body(...), user: dict = Depends(get_current_
     db.collection('_history').add(doc)
     return {'ok': True}
 
-# Nota: Las rutas estáticas (/) y (/{path}) han sido eliminadas.
-# Vercel sirve ahora el contenido de la carpeta /public de forma nativa para mejor rendimiento.
+# --- SERVIDO DE ARCHIVOS ESTÁTICOS (Fallback para Vercel) ---
+STATIC_DIR = Path(__file__).parent.parent / "public"
+
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    @app.get("/")
+    async def read_index():
+        return FileResponse(str(STATIC_DIR / "index.html"))
+
+    @app.get("/{path:path}")
+    async def catch_all(path: str):
+        # Si la ruta existe en /public, la servimos
+        file_path = STATIC_DIR / path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(str(file_path))
+        # Si no, devolvemos el index (para SPA)
+        return FileResponse(str(STATIC_DIR / "index.html"))
