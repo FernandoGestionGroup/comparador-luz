@@ -241,8 +241,9 @@ def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
     if not gemini_key:
         raise Exception("No hay API Key de Google Gemini configurada. Configúrala en Ajustes > IA.")
     
-    client = genai.Client(api_key=gemini_key)
-    
+    # Solución definitiva: Usar v1 estable e inyectar el sistema en el prompt para máxima compatibilidad
+    client = genai.Client(api_key=gemini_key, http_options={'api_version': 'v1'})
+
     system_prompt = (
         "Eres un experto senior en el sector eléctrico español. Tu tarea es extraer datos con precisión absoluta de facturas eléctricas.\n\n"
         "REGLAS DE ORO:\n"
@@ -270,13 +271,20 @@ def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
         '"reactiva":0,"exceso_potencia":0,"alquiler_equipos":0,"bono_social":0,"servicio":0}'
     )
     
-    user_content = f"TEXTO COMPLETO DE LA FACTURA ELÉCTRICA:\n\n{texto_pdf}\n\nExtrae todos los datos en el formato JSON especificado."
+    # Combinamos instrucciones y texto para evitar el error de campo 'systemInstruction' en v1
+    full_prompt = f"{system_prompt}\n\nDATOS DE LA FACTURA A PROCESAR:\n{texto_pdf}"
     
-    response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=[types.Content(role="user", parts=[types.Part.from_text(text=user_content)])],
-        config=types.GenerateContentConfig(system_instruction=system_prompt)
-    )
+    try:
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)])]
+        )
+    except Exception as e:
+        # Fallback de emergencia a 2.0 si 1.5 falla por alguna razón de cuota
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)])]
+        )
     
     text = response.text
     # Extraer JSON de la respuesta
