@@ -622,9 +622,13 @@
                             </div>
                             <div class="g2" style="margin-bottom:16px">
                                 <div class="fld"><label class="fld-label">Email</label><input type="email" id="eu_email" class="form-input"></div>
-                                <div class="fld"><label class="fld-label">Contraseña</label><input type="password" id="eu_pass" class="form-input" placeholder="(dejar vacío para no cambiar)"></div>
+                                <div class="fld"><label class="fld-label">API Key OpenAI</label><input type="password" id="cfg_openaikey" class="form-input" placeholder="sk-..."></div>
                             </div>
-                            <div class="btn-group" style="justify-content:flex-start">
+                            <div class="g2 ia-fields" id="ia_openai" style="display:none;margin-bottom:12px">
+                                <div class="fld"><label class="fld-label">OpenAI API URL (Opcional)</label><input type="text" id="cfg_openai_url" class="form-input" placeholder="https://api.openai.com/v1"></div>
+                                <div class="fld"><label class="fld-label">Modelo específico (Opcional)</label><input type="text" id="cfg_model" class="form-input" placeholder="p.ej. gpt-4o"></div>
+                            </div>
+                            <div class="btn-group" style="justify-content:flex-start;margin-top:20px">
                                 <button class="btn-action primary" onclick="saveUser()">Guardar Usuario</button>
                                 <button class="btn-action secondary" onclick="$('usrEditor').style.display='none'">Cancelar</button>
                             </div>

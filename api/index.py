@@ -451,6 +451,19 @@ async def manage_usuarios(body: dict = Body(...)):
     elif action == 'delete' and uid:
         ref.document(uid).delete()
     return {'ok': True}
+@app.get("/api/config", dependencies=[Depends(get_current_user)])
+async def get_config():
+    db = get_db()
+    if not db: return {}
+    d = db.collection('config').document('global').get()
+    return d.to_dict() if d.exists else {}
+
+@app.post("/api/config", dependencies=[Depends(verify_admin)])
+async def save_config(body: dict = Body(...)):
+    db = get_db()
+    if not db: return {'ok': False}
+    db.collection('config').document('global').set(body)
+    return {'ok': True}
 
 @app.post("/api/calculate", dependencies=[Depends(get_current_user)])
 async def calculate_comparison(body: dict = Body(...)):
@@ -599,7 +612,9 @@ async def extract_invoice(body: dict = Body(...)):
                 raise e
         return JSONResponse(status_code=500, content={"error": f"Fallo en IAs: {attempted_providers}"})
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": "Error durante la extracción"})
+        print(f"ERROR EXTRACT: {str(e)}")
+        print(traceback.format_exc())
+        return JSONResponse(status_code=500, content={"error": f"Error durante la extracción: {str(e)}"})
 
 @app.get("/api/history", dependencies=[Depends(get_current_user)])
 async def get_history(user: dict = Depends(get_current_user)):
