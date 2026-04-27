@@ -273,7 +273,7 @@ def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
     user_content = f"TEXTO COMPLETO DE LA FACTURA ELÉCTRICA:\n\n{texto_pdf}\n\nExtrae todos los datos en el formato JSON especificado."
     
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
+        model="gemini-2.0-flash",
         contents=[types.Content(role="user", parts=[types.Part.from_text(text=user_content)])],
         config=types.GenerateContentConfig(system_instruction=system_prompt)
     )
@@ -369,7 +369,7 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
         "data": datos,
         "costes_extra_total": datos.get('costes_extra_total', 0),
         "texto_extraido_chars": len(texto),
-        "provider": "gemini-1.5-flash",
+        "provider": "gemini-2.0-flash",
         "metodo": "PyMuPDF + Gemini"
     })
 
