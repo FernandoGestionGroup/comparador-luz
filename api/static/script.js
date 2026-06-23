@@ -537,7 +537,13 @@ async function extractPdfServer(){
       body: formData
     });
     
-    const d = await resp.json();
+    const rawText = await resp.text();
+    let d;
+    try {
+      d = JSON.parse(rawText);
+    } catch (parseError) {
+      throw new Error(`Respuesta no-JSON del servidor (${resp.status}): ` + rawText.substring(0, 80));
+    }
     
     if(d.error){
       // Si es error de OCR, sugerir usar la extracción estándar con IA y MOSTRAR el botón
