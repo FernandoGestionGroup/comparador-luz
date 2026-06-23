@@ -234,16 +234,9 @@ def extraer_texto_pdf(pdf_bytes: bytes) -> str:
         print(f"Error PyMuPDF: {e}")
         return ""
 
-def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
-    """Envía el texto extraído del PDF a Gemini 1.5 Flash y devuelve un JSON estructurado."""
-    if not genai or not types:
-        raise Exception("Librería google-genai no disponible")
-    if not gemini_key:
-        raise Exception("No hay API Key de Google Gemini configurada. Configúrala en Ajustes > IA.")
+def extraer_datos_factura(texto_pdf: str, keys: dict, provider_manual: str) -> dict:
+    """Envía el texto extraído del PDF al LLM (OpenAI, Gemini, etc.) y devuelve un JSON estructurado."""
     
-    # Solución definitiva: Usar v1 estable e inyectar el sistema en el prompt para máxima compatibilidad
-    client = genai.Client(api_key=gemini_key, http_options={'api_version': 'v1'})
-
     system_prompt = (
         "Eres un experto senior en el sector eléctrico español. Tu tarea es extraer datos con precisión absoluta de facturas eléctricas.\n\n"
         "REGLAS DE ORO:\n"
@@ -271,26 +264,61 @@ def extraer_datos_factura(texto_pdf: str, gemini_key: str) -> dict:
         '"reactiva":0,"exceso_potencia":0,"alquiler_equipos":0,"bono_social":0,"servicio":0}'
     )
     
-    # Combinamos instrucciones y texto para evitar el error de campo 'systemInstruction' en v1
     full_prompt = f"{system_prompt}\n\nDATOS DE LA FACTURA A PROCESAR:\n{texto_pdf}"
     
-    try:
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=[types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)])]
-        )
-    except Exception as e:
-        # Fallback de emergencia a 2.0 si 1.5 falla por alguna razón de cuota
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)])]
-        )
-    
-    text = response.text
-    # Extraer JSON de la respuesta
+    priority = ["google", "anthropic", "openai", "groq"]
+    if provider_manual != "auto" and provider_manual in priority:
+        priority.remove(provider_manual)
+        priority.insert(0, provider_manual)
+        
+    text = ""
+    for provider in priority:
+        if not keys.get(provider): continue
+        try:
+            if provider == "google":
+                if not genai: continue
+                client = genai.Client(api_key=keys["google"], http_options={'api_version': 'v1'})
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=[types.Content(role="user", parts=[types.Part.from_text(text=full_prompt)])]
+                )
+                text = response.text
+                break
+            elif provider in ["openai", "groq"]:
+                is_groq = (provider == "groq")
+                b_url = keys.get("openai_url") or ("https://api.groq.com/openai/v1" if is_groq else "https://api.openai.com/v1")
+                client = OpenAI(api_key=keys[provider], base_url=b_url)
+                model_name = "gpt-4o-mini" if provider == "openai" else "llama-3.3-70b-versatile"
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"DATOS DE LA FACTURA A PROCESAR:\n{texto_pdf}"}
+                    ],
+                    response_format={"type": "json_object"} if not is_groq else None
+                )
+                text = response.choices[0].message.content
+                break
+            elif provider == "anthropic":
+                client = anthropic.Anthropic(api_key=keys["anthropic"])
+                response = client.messages.create(
+                    model="claude-3-5-sonnet-latest", 
+                    max_tokens=4096, 
+                    system=system_prompt, 
+                    messages=[{"role": "user", "content": f"DATOS DE LA FACTURA A PROCESAR:\n{texto_pdf}"}]
+                )
+                text = response.content[0].text
+                break
+        except Exception as e:
+            print(f"Error con {provider} en extract-pdf: {e}")
+            continue
+
+    if not text:
+        raise Exception("Fallo en todos los proveedores de IA o no hay claves configuradas.")
+        
     match = re.search(r'(\{.*\})', text, re.DOTALL)
     if not match:
-        raise Exception("Gemini no devolvió un JSON válido")
+        raise Exception("La IA no devolvió un JSON válido")
     
     parsed = json.loads(match.group(1))
     return parsed
@@ -320,26 +348,36 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
             "tipo": "ocr_requerido"
         })
     
-    # 6. Obtener API Key de Gemini desde config
+    # 6. Obtener Configuración de IA
     db = get_db()
-    gemini_key = None
+    cfg = {}
     if db:
         cfg_doc = db.collection('config').document('global').get()
         if cfg_doc.exists:
-            gemini_key = cfg_doc.to_dict().get('gemini_key')
+            cfg = cfg_doc.to_dict()
+            
+    keys = {
+        "google": cfg.get("gemini_key"),
+        "openai": cfg.get("openai_key"),
+        "anthropic": cfg.get("api_key"),
+        "groq": cfg.get("openai_key") if (cfg.get("openai_url") and "groq" in cfg.get("openai_url")) else (cfg.get("openai_key") if cfg.get("provider")=="groq" else None),
+        "openai_url": cfg.get("openai_url")
+    }
     
-    if not gemini_key:
+    provider_manual = cfg.get("provider", "auto")
+    
+    if not any(k for k, v in keys.items() if k != "openai_url" and v):
         return JSONResponse(status_code=400, content={
-            "error": "No hay API Key de Google Gemini configurada. Ve a Ajustes > Inteligencia Artificial y añade tu Gemini Key."
+            "error": "No hay ninguna API Key de IA configurada. Ve a Ajustes > Inteligencia Artificial y añade tu API Key."
         })
     
-    # 7. Enviar a Gemini para extracción inteligente
+    # 7. Enviar a la IA para extracción inteligente
     try:
-        datos = extraer_datos_factura(texto, gemini_key)
+        datos = extraer_datos_factura(texto, keys, provider_manual)
     except json.JSONDecodeError as e:
-        return JSONResponse(status_code=500, content={"error": f"Error al parsear la respuesta de Gemini: {str(e)}"})
+        return JSONResponse(status_code=500, content={"error": f"Error al parsear la respuesta de la IA: {str(e)}"})
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": f"Error en extracción con Gemini: {str(e)}"})
+        return JSONResponse(status_code=500, content={"error": f"Error en extracción con IA: {str(e)}"})
     
     # 8. Conversión robusta a float de todos los campos numéricos
     # Campos que deben ser strings (no convertir)
