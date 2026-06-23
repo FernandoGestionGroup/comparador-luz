@@ -20,8 +20,12 @@ import anthropic
 from openai import OpenAI
 try: from google import genai; from google.genai import types
 except: genai = None; types = None
-try: import fitz  # PyMuPDF
-except: fitz = None
+try:
+    import fitz # PyMuPDF
+    fitz.TOOLS.mupdf_display_errors(False)
+    fitz.TOOLS.mupdf_display_warnings(False)
+except ImportError:
+    fitz = None
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -417,7 +421,7 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
         "texto_extraido_chars": len(texto),
         "provider": "gemini-1.5-flash-latest",
         "metodo": "PyMuPDF + Gemini"
-    })
+    }, headers={"Cache-Control": "no-transform"})
 
 # --- CALCULATION ENGINE ---
 
