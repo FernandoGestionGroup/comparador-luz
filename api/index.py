@@ -351,19 +351,26 @@ def extraer_datos_factura(texto_pdf: str, keys: dict, provider_manual: str) -> d
     return parsed
 
 @app.post("/api/extract-pdf", dependencies=[Depends(get_current_user)])
-async def extract_pdf_endpoint(file: UploadFile = File(...)):
-    """Endpoint para extraer datos de factura desde un archivo PDF usando PyMuPDF + Gemini."""
+async def extract_pdf_endpoint(body: dict = Body(...)):
+    """Endpoint para extraer datos de factura desde un archivo PDF enviando Base64 (evita fallos multipart en Vercel)."""
+    
+    filename = body.get("filename", "")
+    file_base64 = body.get("file_base64", "")
     
     # 1. Validar que es un PDF
-    if not file.filename.lower().endswith('.pdf'):
+    if not filename.lower().endswith('.pdf') or not file_base64:
         return JSONResponse(status_code=400, content={"error": "Solo se aceptan archivos PDF. Para imágenes, use la extracción con IA estándar."})
     
     # 2. Verificar que PyMuPDF está disponible
     if not fitz:
         return JSONResponse(status_code=500, content={"error": "PyMuPDF (fitz) no está instalado en el servidor."})
     
-    # 3. Leer el archivo
-    pdf_bytes = await file.read()
+    # 3. Decodificar Base64 a bytes
+    import base64
+    try:
+        pdf_bytes = base64.b64decode(file_base64)
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"error": f"Error al decodificar el archivo PDF: {e}"})
     
     # 4. Extraer texto con PyMuPDF
     texto = extraer_texto_pdf(pdf_bytes)
@@ -437,13 +444,18 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
         if k not in datos:
             datos[k] = v
     
+    # Determinar el nombre del proveedor real usado (para mostrar en frontend)
+    provider_real = "OpenAI" if "openai" in provider_manual else ("Gemini" if "google" in provider_manual else ("Anthropic" if "anthropic" in provider_manual else provider_manual.capitalize()))
+    if provider_manual == "auto":
+        provider_real = "Auto (Google/Anthropic/OpenAI)"
+        
     return JSONResponse(status_code=200, content={
         "ok": True,
         "data": datos,
         "costes_extra_total": datos.get('costes_extra_total', 0),
         "texto_extraido_chars": len(texto),
-        "provider": "gemini-1.5-flash-latest",
-        "metodo": "PyMuPDF + Gemini"
+        "provider": provider_real,
+        "metodo": f"PyMuPDF + {provider_real}"
     }, headers={
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0, no-transform",
         "Pragma": "no-cache",

@@ -519,22 +519,34 @@ async function extract(){
 }
 
 async function extractPdfServer(){
-  // Extracción server-side: enviar PDF al backend como FormData (PyMuPDF + Gemini)
+  // Extracción server-side: enviar PDF al backend como JSON Base64
   const pdfFile = (ST._rawFiles || []).find(f => f.type.includes('pdf'));
   if(!pdfFile){ sb('No se encontró un archivo PDF. Sube un PDF primero.','err'); return; }
   
   const btn = $('btnExPdf');
   const old = btn.innerHTML;
   btn.disabled = true;
-  sb('Extrayendo texto del PDF con PyMuPDF + Gemini…','load');
+  sb('Extrayendo texto del PDF con PyMuPDF + IA…','load');
   
   try {
-    const formData = new FormData();
-    formData.append('file', pdfFile);
-    
+    // 1. Convertir PDF a Base64 localmente
+    const base64Data = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(pdfFile);
+    });
+
+    // 2. Enviar JSON puro (evita problemas de multipart/form-data en Vercel)
     const resp = await fetch('/api/extract-pdf', {
       method: 'POST',
-      body: formData
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        filename: pdfFile.name,
+        file_base64: base64Data
+      })
     });
     
     const rawText = await resp.text();
