@@ -227,7 +227,18 @@ def extraer_texto_pdf(pdf_bytes: bytes) -> str:
     """Extrae texto de un PDF usando PyMuPDF. Devuelve string vacío si falla."""
     if not fitz:
         return ""
+    
+    import sys, os
+    fd = sys.stdout.fileno()
+    try: saved_fd = os.dup(fd)
+    except: saved_fd = None
+    devnull = None
+    
     try:
+        if saved_fd is not None:
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, fd)
+            
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         texto = ""
         for page in doc:
@@ -235,8 +246,20 @@ def extraer_texto_pdf(pdf_bytes: bytes) -> str:
         doc.close()
         return texto.strip()
     except Exception as e:
+        # We can't print easily here if stdout is redirected, but we'll try to restore first
+        if saved_fd is not None:
+            os.dup2(saved_fd, fd)
+            os.close(devnull)
+            devnull = None
+            saved_fd = None
         print(f"Error PyMuPDF: {e}")
         return ""
+    finally:
+        if saved_fd is not None:
+            os.dup2(saved_fd, fd)
+            if devnull is not None:
+                os.close(devnull)
+            os.close(saved_fd)
 
 def extraer_datos_factura(texto_pdf: str, keys: dict, provider_manual: str) -> dict:
     """Envía el texto extraído del PDF al LLM (OpenAI, Gemini, etc.) y devuelve un JSON estructurado."""
@@ -421,7 +444,11 @@ async def extract_pdf_endpoint(file: UploadFile = File(...)):
         "texto_extraido_chars": len(texto),
         "provider": "gemini-1.5-flash-latest",
         "metodo": "PyMuPDF + Gemini"
-    }, headers={"Cache-Control": "no-transform"})
+    }, headers={
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0, no-transform",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    })
 
 # --- CALCULATION ENGINE ---
 
