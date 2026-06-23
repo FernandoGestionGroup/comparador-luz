@@ -4,7 +4,7 @@ import os
 import sys
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from api.index import app
+from api.index import app, STATIC_DIR
 import json
 
 # --- AUTO-DETECT FIREBASE KEY ---
@@ -22,17 +22,16 @@ else:
     print("⚠️ ADVERTENCIA: No se encontró la llave de Firebase (*.json).")
     print("Para que funcione el Login e Historial, descarga la llave de Firebase Console y ponla en esta carpeta.")
 
-# Montar la carpeta public para servir el frontend
-public_path = os.path.join(os.getcwd(), "public")
-if os.path.exists(public_path):
-    app.mount("/", StaticFiles(directory=public_path, html=True), name="public")
+# Montar la carpeta estática para servir el frontend
+if os.path.exists(STATIC_DIR):
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="public")
 else:
-    print(f"Error: No se encontró la carpeta 'public' en {public_path}")
+    print(f"Error: No se encontró la carpeta estática en {STATIC_DIR}")
 
 @app.exception_handler(404)
 async def not_found_exception_handler(request, exc):
     # Para SPA: redirigir 404 al index.html
-    return FileResponse(os.path.join(public_path, "index.html"))
+    return FileResponse(os.path.join(str(STATIC_DIR), "index.html"))
 
 if __name__ == "__main__":
     print("--- INICIANDO SERVIDOR LOCAL GESTION GROUP ---")
