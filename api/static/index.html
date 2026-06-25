@@ -90,7 +90,7 @@
                     <div class="uz-title">Subir factura</div>
                     <div class="uz-sub">Haz clic o arrastra archivos aquí</div>
                 </div>
-                <input type="file" id="fInput" style="display:none" multiple onchange="onFiles(this.files)">
+                <input type="file" id="fInput" style="display:none" multiple accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" onchange="onFiles(this.files)">
                 <div id="chips" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px"></div>
                 <div id="prevSec" style="display:none;margin-top:24px;text-align:center">
                     <img id="prevImg" class="preview-img">
@@ -448,9 +448,11 @@
     </main>
 </div>
 
-<!-- ═══ JS ═══ -->
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
-<script src="script.js?v=audit_v1"></script>
+<!-- Main Script -->
+<script src="script.js?v=2.3"></script>
 </body>
 </html>

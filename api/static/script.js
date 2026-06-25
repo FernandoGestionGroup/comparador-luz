@@ -404,6 +404,35 @@ function addLecL(per){
   $('lecT').appendChild(tr);
 }
 
+function isPdf(file) {
+  const type = (file && file.type) || '';
+  const name = (file && file.name) || '';
+  return type.includes('pdf') || /\.pdf$/i.test(name);
+}
+
+function isImage(file) {
+  const type = (file && file.type) || '';
+  const name = (file && file.name) || '';
+  return (type.startsWith('image/') || /\.(jpe?g|png|gif|webp)$/i.test(name)) && !isPdf(file);
+}
+
+function normMime(file) {
+  const type = (file && file.type) || '';
+  const name = (file && file.name) || '';
+  if (isPdf(file)) return 'application/pdf';
+  if (type.includes('png') || /\.png$/i.test(name)) return 'image/png';
+  if (type.includes('gif') || /\.gif$/i.test(name)) return 'image/gif';
+  if (type.includes('webp') || /\.webp$/i.test(name)) return 'image/webp';
+  return type || 'image/jpeg';
+}
+
+function b64ToUint8Array(b64) {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
 function updTar(forceTariff){
   const v = n($('f_pot').value); 
   let t = forceTariff || $('f_tar').value;
@@ -438,31 +467,48 @@ function updTar(forceTariff){
 
 function onFiles(flist){
   const files=Array.from(flist); if(!files.length) return;
-  ST.files=[]; ST._rawFiles=[]; $('chips').innerHTML=''; let loaded=0;
+  ST.files=[]; ST._rawFiles=[]; $('chips').innerHTML=''; let loaded=0; let failed=0;
   files.forEach(function(file){
-    ST._rawFiles.push(file); // Guardar referencia al File original para FormData
+    if(!isPdf(file) && !isImage(file)){
+      sb('Formato no soportado: ' + (file.name || 'archivo') + '. Usa PDF, JPG o PNG.','err');
+      failed++;
+      return;
+    }
+    if(isPdf(file) && file.size > 4 * 1024 * 1024){
+      sb('PDF demasiado grande (' + Math.round(file.size / 1024 / 1024) + ' MB). Máximo ~4 MB.','err');
+      failed++;
+      return;
+    }
+    if(isImage(file) && file.size > 3.5 * 1024 * 1024){
+      sb('Imagen demasiado grande (' + Math.round(file.size / 1024 / 1024) + ' MB). Máximo ~3.5 MB. Comprime la imagen antes de subirla.','err');
+      failed++;
+      return;
+    }
+    ST._rawFiles.push(file);
     const r=new FileReader();
+    r.onerror=function(){
+      failed++;
+      sb('Error al leer el archivo: ' + (file.name || 'PDF') + '. Prueba de nuevo o usa otro PDF.','err');
+      if(loaded + failed === files.length && loaded === 0) resetUp();
+    };
     r.onload=function(e){
-      ST.files.push({data:e.target.result.split(',')[1], type:file.type, name:file.name, src:e.target.result});
-      $('chips').innerHTML+='<span class="chip">'+(file.type.includes('pdf')?'📄':'🖼️')+' '+file.name+'</span>';
-      if(++loaded===files.length){
-        const img=ST.files.find(f=>!f.type.includes('pdf'));
+      ST.files.push({data:e.target.result.split(',')[1], type:normMime(file), name:file.name, src:e.target.result});
+      $('chips').innerHTML+='<span class="chip">'+(isPdf(file)?'📄':'🖼️')+' '+file.name+'</span>';
+      if(++loaded + failed === files.length){
+        const img=ST.files.find(f=>isImage(f));
         if(img && $('prevImg')){$('prevImg').src=img.src;$('prevImg').style.display='block';} 
         else if($('prevImg')) $('prevImg').style.display='none';
         
         if($('prevSec')) $('prevSec').style.display='block';
         if($('upzone')) $('upzone').style.borderColor='var(--primary)';
         
-        // Lógica de botones inteligente para ahorrar tokens
-        const hasPdf = ST.files.some(f => f.type.includes('pdf'));
-        const hasImg = ST.files.some(f => !f.type.includes('pdf'));
+        const hasPdf = ST.files.some(f => isPdf(f));
+        const hasImg = ST.files.some(f => isImage(f));
         
         if(hasImg) {
-          // Si hay imágenes, mostramos el botón de IA (necesario)
           if($('btnEx')) $('btnEx').style.display = '';
           if($('btnExPdf')) $('btnExPdf').style.display = 'none';
         } else if(hasPdf) {
-          // Si es solo PDF, mostramos el barato y ocultamos el caro
           if($('btnExPdf')) $('btnExPdf').style.display = '';
           if($('btnEx')) $('btnEx').style.display = 'none';
         }
@@ -472,11 +518,11 @@ function onFiles(flist){
   });
 }
 
-function resetUp(){ ST.files=[];$('prevSec').style.display='none';$('chips').innerHTML='';$('upzone').style.borderColor='';$('fInput').value=''; }
+function resetUp(){ ST.files=[]; ST._rawFiles=[]; $('prevSec').style.display='none';$('chips').innerHTML='';$('upzone').style.borderColor='';$('fInput').value=''; }
 
 async function extractTextFromPDF(dataBase64) {
   try {
-    const loadingTask = pdfjsLib.getDocument({ data: atob(dataBase64) });
+    const loadingTask = pdfjsLib.getDocument({ data: b64ToUint8Array(dataBase64) });
     const pdf = await loadingTask.promise;
     let fullText = "";
     for (let i = 1; i <= pdf.numPages; i++) { const page = await pdf.getPage(i); const textContent = await page.getTextContent(); fullText += textContent.items.map(item => item.str).join(' ') + "\n"; }
@@ -494,16 +540,22 @@ async function extract(){
   btn.disabled=true; sb('Analizando factura con IA ('+p.toUpperCase()+')…','load');
   const uc=[];
   for(const f of ST.files){
-    let textContent = null; const m = f.type || 'image/jpeg';
-    if(m.includes('pdf')) textContent = await extractTextFromPDF(f.data);
+    let textContent = null; const m = f.type || normMime(f);
+    if(isPdf(f)) textContent = await extractTextFromPDF(f.data);
     if(textContent && textContent.length > 50){ uc.push({type:'text', text: "TEXTO DEL DOC:\n" + textContent}); }
-    else { uc.push(m.includes('pdf') ?{type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}} :{type:'image',source:{type:'base64',media_type:m,data:f.data}}); }
+    else { uc.push(isPdf(f) ?{type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data}} :{type:'image',source:{type:'base64',media_type:m,data:f.data}}); }
   }
   const prompt='Extrae los datos de la factura en JSON:\n{"cliente":"","cups":"","comercializadora":"","direccion":"","cp":"","tarifa":"","potencia_kw":0,"dias":0,"fecha_inicio":"","total_factura":0,"iva_pct":21,"iee_pct":5.1126963,"iee_act":0,"iva_act":0,"dto_energia_act_pct":0,"tiene_autoconsumo":false,"autoconsumo_kwh":0,"autoconsumo_precio_kwh":0,"autoconsumo_total":0,"potencia":[],"energia":[],"lecturas_energia":[],"extras_iee":[],"reactiva":0,"exceso_potencia":0,"alquiler_equipos":0,"bono_social":0,"servicio":0}';
   uc.push({type:'text',text:prompt});
   try{
     const resp=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:uc}]})});
-    const d=await resp.json(); if(d.error) throw new Error(d.error);
+    const rawText = await resp.text();
+    let d;
+    try { d = JSON.parse(rawText); } catch(parseErr) {
+      if(resp.status === 413 || rawText.toLowerCase().includes('too large') || rawText.toLowerCase().includes('entity')) throw new Error('El archivo es demasiado grande. Reduce el tamaño del PDF/imagen e inténtalo de nuevo.');
+      throw new Error(`Respuesta inesperada del servidor (${resp.status}): ` + rawText.substring(0, 120));
+    }
+    if(d.error) throw new Error(d.error);
     let cleanText = d.text || ""; 
     const firstBrace = cleanText.indexOf('{'); 
     const lastBrace = cleanText.lastIndexOf('}');
@@ -519,9 +571,9 @@ async function extract(){
 }
 
 async function extractPdfServer(){
-  // Extracción server-side: enviar PDF al backend como JSON Base64
-  const pdfFile = (ST._rawFiles || []).find(f => f.type.includes('pdf'));
-  if(!pdfFile){ sb('No se encontró un archivo PDF. Sube un PDF primero.','err'); return; }
+  const pdfMeta = ST.files.find(f => isPdf(f));
+  const pdfFile = (ST._rawFiles || []).find(f => isPdf(f));
+  if(!pdfFile && !pdfMeta){ sb('No se encontró un archivo PDF. Sube un PDF primero.','err'); return; }
   
   const btn = $('btnExPdf');
   const old = btn.innerHTML;
@@ -529,11 +581,10 @@ async function extractPdfServer(){
   sb('Extrayendo texto del PDF con PyMuPDF + IA…','load');
   
   try {
-    // 1. Convertir PDF a Base64 localmente
-    const base64Data = await new Promise((resolve, reject) => {
+    const base64Data = pdfMeta?.data || await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = error => reject(error);
+      reader.onerror = () => reject(new Error('No se pudo leer el PDF'));
       reader.readAsDataURL(pdfFile);
     });
 
@@ -544,7 +595,7 @@ async function extractPdfServer(){
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        filename: pdfFile.name,
+        filename: (pdfFile || pdfMeta).name,
         file_base64: base64Data
       })
     });
@@ -1336,3 +1387,15 @@ async function delUser(id){
 }
 
 async function loadUsuarios(){ try{ const r=await fetch('/api/usuarios'); ST.usuarios=await r.json(); } catch(e){} }
+
+(function initUploadZone(){
+  const uz = $('upzone');
+  if(!uz) return;
+  uz.addEventListener('dragover', function(e){ e.preventDefault(); uz.style.borderColor = 'var(--primary)'; });
+  uz.addEventListener('dragleave', function(){ uz.style.borderColor = ''; });
+  uz.addEventListener('drop', function(e){
+    e.preventDefault();
+    uz.style.borderColor = '';
+    if(e.dataTransfer?.files?.length) onFiles(e.dataTransfer.files);
+  });
+})();

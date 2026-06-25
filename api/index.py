@@ -6,6 +6,7 @@ import time
 import sys
 import traceback
 import re
+import base64
 
 # --- FASTAPI INIT ---
 from fastapi import FastAPI, Body, Request, HTTPException, Depends, UploadFile, File
@@ -366,7 +367,6 @@ async def extract_pdf_endpoint(body: dict = Body(...)):
         return JSONResponse(status_code=500, content={"error": "PyMuPDF (fitz) no está instalado en el servidor."})
     
     # 3. Decodificar Base64 a bytes
-    import base64
     try:
         pdf_bytes = base64.b64decode(file_base64)
     except Exception as e:
@@ -878,7 +878,8 @@ async def extract_invoice(body: dict = Body(...)):
                     for c in m['content']:
                         if c['type'] == 'text': parts.append(types.Part.from_text(text=c['text']))
                         elif c['type'] in ['image', 'document']: 
-                            parts.append(types.Part.from_bytes(data=c['source']['data'], mime_type=c['source']['media_type']))
+                            img_bytes = base64.b64decode(c['source']['data'])
+                            parts.append(types.Part.from_bytes(data=img_bytes, mime_type=c['source']['media_type']))
                     contents.append(types.Content(role="user" if m['role']=="user" else "model", parts=parts))
                 
                 # Gemini 2.0 Flash es el modelo recomendado por el Ingeniero Senior
